@@ -9,6 +9,7 @@ import { Header } from './components/Header';
 import { InventoryView } from './components/InventoryView';
 import { LoginModal } from './components/LoginModal';
 import { LoginPage } from './components/LoginPage';
+import { MasterStaffView } from './components/MasterStaffView';
 import { ReceiptModal } from './components/ReceiptModal';
 import { SalarySlipModal } from './components/SalarySlipModal';
 import { StudentsView } from './components/StudentsView';
@@ -18,7 +19,7 @@ import { TeachingAdministrationView } from './components/TeachingAdministrationV
 import { UserProfileModal } from './components/UserProfileModal';
 import { WhatsAppReminderView } from './components/WhatsAppReminderView';
 import { AppProvider, useApp } from './context/AppContext';
-import { Lock, RotateCcw, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
+import { Download, Lock, RotateCcw, ShieldAlert, Smartphone, Sparkles, UserCheck } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const {
@@ -101,6 +102,7 @@ const MainLayout: React.FC = () => {
               <TeacherMySlipsView />
             ) : (
               <>
+                {activeTab === 'master-guru' && <MasterStaffView />}
                 {activeTab === 'penggajian' && <TeacherPayrollView />}
                 {activeTab === 'my-slips' && <TeacherMySlipsView />}
               </>
@@ -147,17 +149,29 @@ const MainLayout: React.FC = () => {
               </span>
             </div>
             <span className="hidden sm:inline" aria-hidden="true">·</span>
-            <span className="text-slate-500">{staffInfo.address}</span>
+            <span className="text-slate-500">
+              {staffInfo.address} · Telp: {staffInfo.phone} · Web: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 text-[11px] text-slate-400">
+            <a
+              href="./SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
+              download="SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-md transition-colors"
+              title="Unduh file aplikasi Android (APK) SIBOGO untuk dipasang di smartphone Android"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Unduh APK Android</span>
+              <Download className="w-3 h-3 text-emerald-600" />
+            </a>
             <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-600" />
               Penanggung Jawab & Pengembang: <strong>{staffInfo.appDeveloper || 'Benisius Rahmat Basuki, S.Pd'}</strong>
             </span>
             <button
               onClick={resetToDefaultData}
-              className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors ml-2"
+              className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors ml-1"
               title="Reset data ke contoh awal SD BOPKRI Gondolayu"
             >
               <RotateCcw className="w-3 h-3" />

@@ -51,12 +51,13 @@ export const Header: React.FC = () => {
     { id: 'jenis-tagihan', label: 'Pos Tagihan', icon: <Settings className="w-3.5 h-3.5" /> },
   ];
 
-  // Sub-navigation tabs for Menu Penggajian
+  // Sub-navigation tabs for Menu Penggajian & Kepegawaian
   const payrollSubNav: { id: AppNavTab; label: string; icon: React.ReactNode }[] = isTeacher
     ? [
         { id: 'my-slips', label: 'Slip Gaji Saya', icon: <FileText className="w-3.5 h-3.5" /> },
       ]
     : [
+        { id: 'master-guru', label: 'Master Data Guru & Staf', icon: <GraduationCap className="w-3.5 h-3.5" /> },
         { id: 'penggajian', label: 'Kelola Gaji Guru & Staf', icon: <Wallet className="w-3.5 h-3.5" /> },
         { id: 'my-slips', label: 'Slip Gaji Saya', icon: <FileText className="w-3.5 h-3.5" /> },
       ];

@@ -109,10 +109,11 @@ export const ReceiptModal: React.FC = () => {
 
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-xs transition-colors"
+              title="Arahkan langsung ke printer komputer fisik Anda (Epson, Canon, HP, Thermal 80mm, dll.)"
             >
               <Printer className="w-3.5 h-3.5" />
-              Cetak Sekarang
+              Cetak ke Printer Komputer
             </button>
 
             <button
@@ -134,7 +135,7 @@ export const ReceiptModal: React.FC = () => {
         </div>
 
         {/* Printable Receipt Body */}
-        <div ref={receiptRef} className="p-8 print:p-2 bg-white text-slate-900">
+        <div ref={receiptRef} className="printable-area p-8 print:p-2 bg-white text-slate-900">
           {printFormat === 'A4' ? (
             /* ============================================================ */
             /* KWITANSI FORMAL STANDAR A4 / SETENGAH FOLIO                  */
@@ -162,7 +163,7 @@ export const ReceiptModal: React.FC = () => {
                     {staffInfo.address}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Telp: {staffInfo.phone} · Email: {staffInfo.email}
+                    Telp: {staffInfo.phone} · Website: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'} · Email: {staffInfo.email}
                   </p>
                 </div>
               </div>
@@ -304,7 +305,7 @@ export const ReceiptModal: React.FC = () => {
                 />
                 <h3 className="font-bold text-sm tracking-tight">{staffInfo.schoolName}</h3>
                 <p className="text-[10px] text-slate-600">{staffInfo.address}</p>
-                <p className="text-[10px] text-slate-500">Telp: {staffInfo.phone}</p>
+                <p className="text-[10px] text-slate-500">Telp: {staffInfo.phone} · Web: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'}</p>
               </div>
 
               <div className="py-3 border-b border-dashed border-slate-400 space-y-1 text-[11px]">

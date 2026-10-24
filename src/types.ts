@@ -100,17 +100,30 @@ export interface PaymentTransaction {
   notes?: string;
 }
 
-export type EmploymentStatus = 'GTY' | 'PTY' | 'GTTY' | 'PTTY';
+export type EmploymentStatus = 'GTY' | 'PTY' | 'GTTY' | 'PTTY' | 'HONORER' | 'PNS_DPK';
+
+export type StaffType = 'GURU' | 'TENAGA_KEPENDIDIKAN';
+export type Gender = 'L' | 'P';
 
 export interface Teacher {
   id: string;
-  nip: string; // NIP atau NIK Guru
-  name: string;
-  ktpNumber?: string; // No. KTP (16 digit)
+  nip: string; // NIP atau NIK Guru / Nomor Induk Pegawai
+  name: string; // Nama Lengkap beserta Gelar
+  ktpNumber?: string; // No. KTP / NIK (16 digit)
   nuptk?: string; // NUPTK (16 digit)
-  role: string; // e.g. "Guru Kelas 1A", "Guru Pendidikan Agama Kristen", "Guru PJOK"
-  status: EmploymentStatus; // GTY, PTY, GTTY, PTTY
-  phone: string; // WhatsApp guru
+  staffType?: StaffType; // GURU atau TENAGA_KEPENDIDIKAN
+  role: string; // e.g. "Guru Kelas 1A", "Guru Pendidikan Agama Kristen", "Kasir & Staf TU"
+  status: EmploymentStatus; // GTY, PTY, GTTY, PTTY, HONORER, PNS_DPK
+  gender?: Gender; // L / P
+  birthPlace?: string; // Tempat Lahir
+  birthDate?: string; // Tanggal Lahir (YYYY-MM-DD)
+  religion?: string; // Kristen Protestan, Katolik, Islam, dll.
+  maritalStatus?: string; // Kawin, Belum Kawin, dll.
+  lastEducation?: string; // S1 PGSD, S1 PAK, S2 Pendidikan, D3, SMA/SMK
+  major?: string; // Jurusan / Program Studi
+  tmtWorking?: string; // Terhitung Mulai Tanggal Bekerja (YYYY-MM-DD)
+  address?: string; // Alamat Tempat Tinggal Lengkap
+  phone: string; // WhatsApp guru / pegawai
   email: string;
   bankName: string; // e.g. "BPD DIY", "BCA", "Mandiri", "BRI", "BNI"
   accountNumber: string;
@@ -119,6 +132,7 @@ export interface Teacher {
   isActive: boolean;
   username?: string; // Akun login guru/karyawan
   password?: string; // Kata sandi/PIN login
+  notes?: string;
   createdAt: string;
 }
 
@@ -218,6 +232,7 @@ export interface SchoolStaffInfo {
   address: string;
   phone: string;
   email: string;
+  website?: string;
   principal: string; // FX. Suhari Irawan, S.E
   treasurer: string; // Eni Utaminingsih, S.Pd
   cashier: string; // Nastiti Ken Utami

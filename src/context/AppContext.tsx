@@ -49,6 +49,7 @@ export type AppNavTab =
   | 'tagihan'
   | 'siswa'
   | 'penggajian'
+  | 'master-guru'
   | 'jenis-tagihan'
   | 'whatsapp'
   | 'laporan'
@@ -124,6 +125,7 @@ interface AppContextType {
   updateTeacher: (id: string, data: Partial<Teacher>) => void;
   deleteTeacher: (id: string, deleteRelatedPayrolls?: boolean) => void;
   deleteTeachersBulk: (ids: string[], deleteRelatedPayrolls?: boolean) => number;
+  importTeachersFromExcel: (newTeachers: Omit<Teacher, 'id' | 'createdAt'>[]) => number;
   payrolls: PayrollRecord[];
   addPayrollRecord: (data: {
     teacherId: string;
@@ -195,7 +197,26 @@ const STORAGE_KEYS = {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [staffInfo, setStaffInfo] = useState<SchoolStaffInfo>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.STAFF);
-    return saved ? JSON.parse(saved) : INITIAL_STAFF_INFO;
+    if (!saved) return INITIAL_STAFF_INFO;
+    try {
+      const parsed = JSON.parse(saved);
+      // Auto-migrate to current official SD BOPKRI Gondolayu address, phone, and website
+      if (
+        !parsed.website ||
+        parsed.phone === '(0274) 512345' ||
+        (parsed.address && parsed.address.includes('Gondolayu No. 4'))
+      ) {
+        return {
+          ...parsed,
+          address: 'Jl. Jendral Sudirman No. 24, Gowongan, Jetis, Yogyakarta, 55232',
+          phone: '(0274) 523134',
+          website: 'www.sdbopkrigondolayu.sch.id',
+        };
+      }
+      return parsed;
+    } catch {
+      return INITIAL_STAFF_INFO;
+    }
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
@@ -235,7 +256,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TEACHERS);
-    return saved ? JSON.parse(saved) : INITIAL_TEACHERS;
+    if (!saved) return INITIAL_TEACHERS;
+    try {
+      const parsed: Teacher[] = JSON.parse(saved);
+      return parsed.map((t) => {
+        const seed = INITIAL_TEACHERS.find((init) => init.id === t.id || (init.nip && init.nip === t.nip));
+        return {
+          ...seed,
+          ...t,
+          staffType: t.staffType ?? seed?.staffType ?? 'GURU',
+          gender: t.gender ?? seed?.gender ?? 'L',
+          birthPlace: t.birthPlace ?? seed?.birthPlace ?? 'Yogyakarta',
+          birthDate: t.birthDate ?? seed?.birthDate ?? '1985-01-01',
+          religion: t.religion ?? seed?.religion ?? 'Kristen Protestan',
+          maritalStatus: t.maritalStatus ?? seed?.maritalStatus ?? 'Kawin',
+          lastEducation: t.lastEducation ?? seed?.lastEducation ?? 'S1',
+          major: t.major ?? seed?.major ?? '',
+          tmtWorking: t.tmtWorking ?? seed?.tmtWorking ?? '2015-01-01',
+          address: t.address ?? seed?.address ?? 'Yogyakarta',
+        };
+      });
+    } catch {
+      return INITIAL_TEACHERS;
+    }
   });
 
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>(() => {
@@ -1135,6 +1178,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return ids.length;
   };
 
+  const importTeachersFromExcel = (newTeachersData: Omit<Teacher, 'id' | 'createdAt'>[]): number => {
+    const nowIso = new Date().toISOString();
+    let count = 0;
+    setTeachers((prev) => {
+      const updated = [...prev];
+      newTeachersData.forEach((tData, idx) => {
+        const existingIdx = updated.findIndex(
+          (t) =>
+            (t.nip && tData.nip && t.nip.trim() === tData.nip.trim()) ||
+            (t.nuptk && tData.nuptk && t.nuptk.trim() === tData.nuptk.trim()) ||
+            t.name.trim().toLowerCase() === tData.name.trim().toLowerCase()
+        );
+        if (existingIdx >= 0) {
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            ...tData,
+          };
+          count++;
+        } else {
+          updated.push({
+            ...tData,
+            id: `tch-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+            createdAt: nowIso,
+          });
+          count++;
+        }
+      });
+      return updated;
+    });
+    return count;
+  };
+
   const addPayrollRecord = (params: {
     teacherId: string;
     period: string;
@@ -1386,6 +1461,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTeacher,
         deleteTeacher,
         deleteTeachersBulk,
+        importTeachersFromExcel,
         payrolls,
         addPayrollRecord,
         updatePayrollRecord,

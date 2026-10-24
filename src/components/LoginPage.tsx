@@ -6,10 +6,12 @@ import {
   ArrowRight,
   CheckCircle2,
   Crown,
+  Download,
   KeyRound,
   Lock,
   LogIn,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   UserCheck,
 } from 'lucide-react';
@@ -228,6 +230,31 @@ export const LoginPage: React.FC = () => {
               }}
             />
 
+            {/* In-App Android APK Direct Download Banner */}
+            <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <span className="text-xs font-bold text-emerald-950 block truncate">
+                    Aplikasi Android SIBOGO (APK)
+                  </span>
+                  <span className="text-[10px] text-emerald-700 block">
+                    v1.0 Resmi · 1.5 MB · Standalone
+                  </span>
+                </div>
+              </div>
+              <a
+                href="./SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
+                download="SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-xs transition-colors shrink-0"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Unduh APK</span>
+              </a>
+            </div>
+
             {/* Quick Demo Logins Section */}
             <div className="pt-4 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between">
@@ -349,7 +376,7 @@ export const LoginPage: React.FC = () => {
           {staffInfo.schoolName} ({staffInfo.foundationName})
         </p>
         <p className="text-[11px] text-slate-500">
-          {staffInfo.address} · Telp: {staffInfo.phone}
+          {staffInfo.address} · Telp: {staffInfo.phone} · Web: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'}
         </p>
         <p className="text-[11px] text-amber-400/90 font-medium pt-1">
           Penanggung Jawab & Pengembang Aplikasi: <strong>{staffInfo.appDeveloper || 'Benisius Rahmat Basuki, S.Pd'}</strong>

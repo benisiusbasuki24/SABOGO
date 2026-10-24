@@ -114,10 +114,11 @@ export const SalarySlipModal: React.FC = () => {
 
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-800 hover:bg-blue-900 rounded-lg shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow-xs transition-colors"
+              title="Arahkan langsung ke printer fisik yang terhubung di komputer Anda (Epson, Canon, HP, Thermal, dll.)"
             >
               <Printer className="w-3.5 h-3.5" />
-              Cetak Slip (PDF)
+              Cetak ke Printer Komputer
             </button>
 
             <button
@@ -148,7 +149,7 @@ export const SalarySlipModal: React.FC = () => {
         </div>
 
         {/* Printable Slip Gaji Document */}
-        <div className="p-8 print:p-2 bg-white text-slate-900">
+        <div className="printable-area p-8 print:p-2 bg-white text-slate-900">
           <div className="border border-slate-300 p-8 rounded-lg print:border-slate-800 print:rounded-none relative">
             
             {/* KOP SURAT */}
@@ -173,7 +174,7 @@ export const SalarySlipModal: React.FC = () => {
                   {staffInfo.address}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Telp: {staffInfo.phone} · Email: {staffInfo.email}
+                  Telp: {staffInfo.phone} · Website: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'} · Email: {staffInfo.email}
                 </p>
               </div>
             </div>

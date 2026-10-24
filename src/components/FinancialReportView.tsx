@@ -379,7 +379,7 @@ export const FinancialReportView: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-600 mt-0.5">{staffInfo.address}</p>
             <p className="text-[11px] text-slate-500">
-              Telp: {staffInfo.phone} · Email: {staffInfo.email}
+              Telp: {staffInfo.phone} · Website: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'} · Email: {staffInfo.email}
             </p>
           </div>
         </div>
