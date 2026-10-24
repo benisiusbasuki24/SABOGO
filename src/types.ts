@@ -1,0 +1,270 @@
+export type PaymentMethod = 'TUNAI' | 'QRIS' | 'VA_BCA' | 'VA_MANDIRI' | 'VA_BRI' | 'VA_BNI';
+
+export type PaymentStatus = 'LUNAS' | 'SEBAGIAN' | 'BELUM_BAYAR' | 'MENUNGGAK';
+
+export type BillFrequency = 'BULANAN' | 'SEMESTER' | 'TAHUNAN' | 'SEKALI_BAYAR';
+
+export type BillCategory = 'SPP' | 'KEGIATAN' | 'EKSTRAKURIKULER' | 'LAINNYA';
+
+export const EXTRACURRICULAR_OPTIONS = [
+  'CODING',
+  'DKV',
+  'PADUS',
+  'BIOLA',
+  'BASKET',
+  'TAEKWONDO',
+  'BAND',
+  'FUTSAL',
+  'TARI',
+  'LUKIS',
+  'MUSIK KREATIF',
+  'ENGLISH CLUB',
+] as const;
+
+export type ExtracurricularName = (typeof EXTRACURRICULAR_OPTIONS)[number];
+
+export interface Student {
+  id: string;
+  nis: string;
+  nisn: string;
+  name: string;
+  grade: string; // e.g. "Kelas 1A", "Kelas 2B", "Kelas 6A"
+  gender: 'L' | 'P';
+  parentName: string;
+  parentPhone: string; // WhatsApp number
+  parentEmail: string;
+  address: string;
+  vaNumber: string; // Default VA number
+  status: 'AKTIF' | 'NONAKTIF';
+  extracurriculars?: ExtracurricularName[]; // Max 2 pilihan
+  extracurricularFee?: number; // Besaran nominal biaya ekskul untuk siswa ini
+  customSppAmount?: number; // Besaran nominal SPP bulanan manual siswa ini
+  customActivityFee?: number; // Besaran nominal Uang Kegiatan manual siswa ini
+  createdAt: string;
+}
+
+export interface BillType {
+  id: string;
+  name: string;
+  category: BillCategory;
+  frequency: BillFrequency;
+  defaultAmount: number;
+  description: string;
+  targetGrades: string[]; // e.g. ["Semua Kelas"] or ["Kelas 1A", "Kelas 1B"]
+  isActive: boolean;
+}
+
+export interface Bill {
+  id: string;
+  billTypeId: string;
+  billTypeName: string;
+  category: BillCategory;
+  studentId: string;
+  studentName: string;
+  studentNis: string;
+  studentGrade: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  period: string; // e.g. "Oktober 2026", "Tahun Ajaran 2026/2027", "Semester Ganjil 2026"
+  amount: number;
+  paidAmount: number;
+  dueDate: string; // YYYY-MM-DD
+  status: PaymentStatus;
+  extracurriculars?: string[]; // Max 2 pilihan ekskul yang diambil
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  receiptNumber: string; // e.g. "BOPKRI-KW/2026/10/0042"
+  billId: string;
+  studentId: string;
+  studentName: string;
+  studentNis: string;
+  studentGrade: string;
+  parentName: string;
+  parentPhone: string;
+  billTypeName: string;
+  period: string;
+  amount: number; // Amount paid in this transaction
+  paymentMethod: PaymentMethod;
+  cashTendered?: number;
+  cashChange?: number;
+  referenceNumber?: string;
+  paidAt: string; // ISO date string
+  cashierName: string; // "Nastiti Ken Utami"
+  treasurerName: string; // "Eni Utaminingsih, S.Pd"
+  principalName: string; // "FX. Suhari Irawan, S.E"
+  notes?: string;
+}
+
+export type EmploymentStatus = 'GTY' | 'PTY' | 'GTTY' | 'PTTY';
+
+export interface Teacher {
+  id: string;
+  nip: string; // NIP atau NIK Guru
+  name: string;
+  ktpNumber?: string; // No. KTP (16 digit)
+  nuptk?: string; // NUPTK (16 digit)
+  role: string; // e.g. "Guru Kelas 1A", "Guru Pendidikan Agama Kristen", "Guru PJOK"
+  status: EmploymentStatus; // GTY, PTY, GTTY, PTTY
+  phone: string; // WhatsApp guru
+  email: string;
+  bankName: string; // e.g. "BPD DIY", "BCA", "Mandiri", "BRI", "BNI"
+  accountNumber: string;
+  accountHolder: string;
+  baseSalary: number; // Gaji Pokok default
+  isActive: boolean;
+  username?: string; // Akun login guru/karyawan
+  password?: string; // Kata sandi/PIN login
+  createdAt: string;
+}
+
+export type UserRole = 'ADMIN' | 'TEACHER';
+
+export interface AuthUser {
+  id: string;
+  role: UserRole;
+  username: string;
+  name: string; // Nama Lengkap
+  ktpNumber?: string; // No. KTP (16 digit)
+  nuptk?: string; // NUPTK (16 digit)
+  email: string;
+  phone?: string; // No. HP
+  employmentStatus?: EmploymentStatus; // GTY | PTY | GTTY | PTTY
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+  password?: string;
+  teacherId?: string; // Terhubung ke ID guru jika role TEACHER
+  positionTitle?: string;
+}
+
+export type TeachingDocCategory =
+  | 'MODUL_AJAR'        // Modul Ajar / RPP Kurikulum Merdeka
+  | 'SILABUS_ATP'       // Alur Tujuan Pembelajaran (ATP)
+  | 'PROMES_PROTA'      // Program Tahunan & Semester (Prota/Promes)
+  | 'ASESMEN_SOAL'      // Kisi-kisi & Butir Soal Asesmen / Ujian
+  | 'JURNAL_MENGAJAR'   // Jurnal Harian & Refleksi Mengajar
+  | 'LKPD'              // Lembar Kerja Peserta Didik
+  | 'REKAP_NILAI'       // Daftar & Rekap Nilai Siswa
+  | 'LAINNYA';          // Dokumen Administrasi Pendukung
+
+export interface TeachingAdminDoc {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  teacherNip: string;
+  title: string;
+  category: TeachingDocCategory;
+  academicYear: string;   // Contoh: "2026/2027"
+  semester: 'Ganjil' | 'Genap';
+  grade: string;          // Contoh: "Kelas 4A", "Semua Kelas"
+  subject: string;        // Contoh: "Pendidikan Agama Kristen", "IPAS", "Matematika"
+  fileName: string;
+  fileSize?: string;
+  fileData?: string;      // Base64 file data or link
+  fileType?: string;      // PDF, DOCX, XLSX
+  notes?: string;
+  uploadedAt: string;     // ISO Date
+  status: 'MENUNGGU_VERIFIKASI' | 'DISETUJUI' | 'PERLU_REVISI';
+  adminFeedback?: string;
+}
+
+export interface PayrollRecord {
+  id: string;
+  slipNumber: string; // e.g. "BOPKRI-SLIP/2026/10/001"
+  teacherId: string;
+  teacherName: string;
+  teacherNip: string;
+  teacherRole: string;
+  period: string; // e.g. "Oktober 2026"
+  baseSalary: number;
+  positionAllowance: number; // Tunjangan Jabatan / Wali Kelas
+  teachingAllowance: number; // Tunjangan Mengajar / Jam Tatap Muka
+  welfareAllowance: number; // Tunjangan Kesejahteraan & Uang Makan
+  bpjsAllowance: number; // Subsidi BPJS
+  otherAllowance: number; // Tunjangan Lainnya / Ekstrakurikuler
+  // Potongan
+  coopDeduction: number; // Potongan Koperasi BOPKRI
+  bpjsDeduction: number; // Iuran BPJS Ketenagakerjaan / Kesehatan
+  taxDeduction: number; // PPh 21
+  loanDeduction: number; // Kasbon / Pinjaman
+  otherDeduction: number; // Potongan Lainnya
+  // Totals
+  totalAllowance: number;
+  totalDeduction: number;
+  netSalary: number; // Take Home Pay
+  // Status transfer
+  paymentStatus: 'BELUM_DITRANSFER' | 'SUDAH_DITRANSFER';
+  paidAt?: string;
+  transferRef?: string;
+  bankName: string;
+  accountNumber: string;
+  teacherPhone: string;
+  teacherEmail: string;
+  principalName: string; // FX. Suhari Irawan, S.E
+  treasurerName: string; // Eni Utaminingsih, S.Pd
+  notes?: string;
+  createdAt: string;
+}
+
+export interface SchoolStaffInfo {
+  schoolName: string;
+  foundationName: string;
+  tagline: string; // "Cerdas Berkarakter"
+  address: string;
+  phone: string;
+  email: string;
+  principal: string; // FX. Suhari Irawan, S.E
+  treasurer: string; // Eni Utaminingsih, S.Pd
+  cashier: string; // Nastiti Ken Utami
+  academicYear: string;
+  appDeveloper?: string; // Benisius Rahmat Basuki, S.Pd
+  officialStampUrl?: string; // "/cap_resmi_bopkri.jpg"
+}
+
+// INVENTARISASI SEKOLAH TYPES
+export type AssetCondition = 'BAIK' | 'RUSAK_RINGAN' | 'RUSAK_BERAT';
+
+export type AssetStatus = 'TERSEDIA' | 'DIPINJAM' | 'DALAM_PERBAIKAN' | 'DIHAPUSBUKUKAN';
+
+export type AssetCategory =
+  | 'TIK_ELEKTRONIK'
+  | 'MEBEL_PERABOT'
+  | 'ALAT_MUSIK'
+  | 'ALAT_OLAHRAGA'
+  | 'ALAT_LAB_IPA'
+  | 'BUKU_PUSTAKA'
+  | 'SARANA_GEDUNG'
+  | 'LAINNYA';
+
+export type AssetFundingSource =
+  | 'BOS_REGULER'
+  | 'BOS_KINERJA'
+  | 'YAYASAN_BOPKRI'
+  | 'KOMITE_SEKOLAH'
+  | 'HIBAH_DONASI';
+
+export interface InventoryAsset {
+  id: string;
+  code: string;               // e.g. "INV-TIK/2026/001"
+  name: string;               // e.g. "Chromebook Asus C214MA Rugged"
+  category: AssetCategory;
+  location: string;           // e.g. "Lab Komputer Lt. 2", "Ruang Kelas 4A"
+  condition: AssetCondition;
+  quantity: number;
+  unit: string;               // "Unit", "Set", "Buah", "Paket"
+  procurementYear: number;    // e.g. 2025, 2026
+  sourceOfFunds: AssetFundingSource;
+  purchasePrice: number;      // Nilai perolehan per satuan (Rp)
+  totalValue: number;         // purchasePrice * quantity
+  picName: string;            // Penanggung Jawab / Peminjam
+  status: AssetStatus;
+  notes?: string;             // Spesifikasi teknis, nomor seri
+  createdAt: string;
+  updatedAt?: string;
+}
+

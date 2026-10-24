@@ -1,0 +1,6 @@
+{
+  "name": "SIBOGO - Sistem Informasi BOPKRI Gondolayu",
+  "description": "Aplikasi pencatatan pembayaran SPP bulanan, uang kegiatan, dan ekstrakurikuler SD BOPKRI Gondolayu Yogyakarta lengkap dengan kwitansi online, cetak nota otomatis, WhatsApp reminder, dan laporan keuangan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
