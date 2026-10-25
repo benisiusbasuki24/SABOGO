@@ -41,6 +41,8 @@ export const InventoryView: React.FC = () => {
     updateAsset,
     deleteAsset,
     deleteAssetsBulk,
+    purgeModuleData,
+    setIsDataPurgeModalOpen,
     currentUser,
     staffInfo,
   } = useApp();
@@ -347,6 +349,36 @@ export const InventoryView: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {!isTeacher && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsDataPurgeModalOpen(true)}
+                  className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold border border-white/20 transition-all flex items-center gap-2 shadow-xs"
+                  title="Buka Pusat Pengelolaan & Penghapusan Data Sistem"
+                >
+                  <Trash2 className="w-4 h-4 text-slate-300" />
+                  <span>Pusat Hapus Data</span>
+                </button>
+                {assets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`⚠️ PERINGATAN ADMIN: Apakah Anda yakin ingin MENGHAPUS SEMUA ${assets.length} data aset dan inventaris sarpras?\nSeluruh buku inventaris akan dikosongkan.`)) {
+                        purgeModuleData('assets');
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="px-3.5 py-2.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl text-xs font-bold border border-red-500/50 transition-all flex items-center gap-2 shadow-xs"
+                    title="Kosongkan Seluruh Aset Inventaris"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Kosongkan Inventaris</span>
+                  </button>
+                )}
+              </>
+            )}
+
             <button
               onClick={() => window.print()}
               className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold border border-white/20 transition-all flex items-center gap-2 shadow-xs"

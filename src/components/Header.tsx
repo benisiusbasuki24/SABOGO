@@ -15,6 +15,7 @@ import {
   PieChart,
   Settings,
   ShieldCheck,
+  Trash2,
   Upload,
   User,
   UserCheck,
@@ -33,6 +34,7 @@ export const Header: React.FC = () => {
     logout,
     setIsLoginModalOpen,
     setIsProfileModalOpen,
+    setIsDataPurgeModalOpen,
   } = useApp();
 
   const isTeacher = currentUser?.role === 'TEACHER';
@@ -261,6 +263,18 @@ export const Header: React.FC = () => {
             >
               <Boxes className="w-3.5 h-3.5" />
               <span>Kelola Aset</span>
+            </button>
+          )}
+
+          {/* Admin Data Purge Center Button */}
+          {!isTeacher && (
+            <button
+              onClick={() => setIsDataPurgeModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg shadow-2xs transition-colors"
+              title="Pusat Hapus & Kelola Data Seluruh Fitur (Khusus Admin)"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-600" />
+              <span className="hidden sm:inline">Kelola & Hapus Data</span>
             </button>
           )}
 

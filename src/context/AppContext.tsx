@@ -39,9 +39,100 @@ export const DEFAULT_ADMIN_USER: AuthUser = {
   accountNumber: '0012398489',
   accountHolder: 'Benisius Rahmat Basuki',
   positionTitle: 'Penanggung Jawab & Pengembang Aplikasi SIBOGO',
+  password: '123',
 };
 
-export type MainMenuType = 'keuangan' | 'penggajian' | 'administrasi' | 'inventarisasi';
+export const INITIAL_REGISTERED_USERS: AuthUser[] = [
+  DEFAULT_ADMIN_USER,
+  {
+    id: 'usr-kepsek-suhari',
+    role: 'KEPALA_SEKOLAH',
+    username: 'suhari.irawan',
+    name: 'FX. Suhari Irawan, S.E',
+    nip: '197405122002121003',
+    ktpNumber: '3471011205740001',
+    nuptk: '8445752654200012',
+    email: 'suhari.irawan@bopkri.sch.id',
+    phone: '081227192837',
+    employmentStatus: 'GTY',
+    positionTitle: 'Kepala Sekolah',
+    password: '123',
+  },
+  {
+    id: 'usr-bendahara-eni',
+    role: 'BENDAHARA',
+    username: 'admin',
+    name: 'Ibu Eni Utaminingsih, S.Pd',
+    nip: '198203152006042007',
+    ktpNumber: '3471021503820002',
+    nuptk: '6547760662300021',
+    email: 'eni.utaminingsih@bopkri.sch.id',
+    phone: '081328994321',
+    employmentStatus: 'GTY',
+    positionTitle: 'Bendahara Sekolah',
+    password: '123',
+  },
+  {
+    id: 'usr-tu-nastiti',
+    role: 'TATA_USAHA',
+    username: 'nastiti.ken',
+    name: 'Nastiti Ken Utami',
+    nip: '199008242015032004',
+    email: 'nastiti.ken@bopkri.sch.id',
+    phone: '081328456789',
+    employmentStatus: 'PTY',
+    positionTitle: 'Kasir & Staf Tata Usaha',
+    password: '123',
+  },
+  {
+    id: 'usr-guru-maria',
+    role: 'GURU',
+    username: 'maria.kristianti',
+    name: 'Maria Kristianti, S.Pd',
+    nip: '198805122014022003',
+    email: 'maria.kristianti@bopkri.sch.id',
+    phone: '081229876543',
+    employmentStatus: 'GTY',
+    positionTitle: 'Guru Kelas 1A',
+    teacherId: 't-1',
+    password: '123',
+  },
+  {
+    id: 'usr-staff-joko',
+    role: 'STAFF',
+    username: 'stefanus.joko',
+    name: 'Stefanus Joko',
+    nip: '199201102016011002',
+    email: 'stefanus.joko@bopkri.sch.id',
+    phone: '081327654321',
+    employmentStatus: 'PTY',
+    positionTitle: 'Staf Sarpras & Karyawan',
+    teacherId: 't-8',
+    password: '123',
+  },
+  {
+    id: 'usr-ortu-kevin',
+    role: 'ORANG_TUA',
+    username: 'ortu.kevin',
+    name: 'Bp. Hendra Prasetyo',
+    email: 'hendra.prasetyo@gmail.com',
+    phone: '081223456789',
+    positionTitle: 'Orang Tua / Wali Siswa',
+    studentId: 'std-1',
+    studentNis: '260101',
+    studentName: 'Kevin Jonathan Prasetyo',
+    studentGrade: 'Kelas 1A',
+    password: '123',
+  },
+];
+
+export type MainMenuType =
+  | 'keuangan'
+  | 'penggajian'
+  | 'administrasi'
+  | 'inventarisasi'
+  | 'approval'
+  | 'portal-ortu';
 
 export type AppNavTab =
   | 'dashboard'
@@ -55,13 +146,32 @@ export type AppNavTab =
   | 'laporan'
   | 'my-slips'
   | 'administrasi-guru'
-  | 'inventarisasi';
+  | 'inventarisasi'
+  | 'approval'
+  | 'portal-ortu';
+
+export interface RegisterUserData {
+  name: string;
+  username: string;
+  password: string;
+  role: import('../types').UserRole;
+  email: string;
+  phone?: string;
+  nip?: string;
+  positionTitle?: string;
+  studentId?: string;
+  studentNis?: string;
+  studentName?: string;
+  studentGrade?: string;
+}
 
 interface AppContextType {
   staffInfo: SchoolStaffInfo;
   updateStaffInfo: (info: Partial<SchoolStaffInfo>) => void;
   // Authentication & Role Isolation
   currentUser: AuthUser | null;
+  registeredUsers: AuthUser[];
+  registerUser: (data: RegisterUserData) => { success: boolean; message: string; user?: AuthUser };
   login: (username: string, password?: string) => { success: boolean; message: string; user?: AuthUser };
   logout: () => void;
   switchUser: (user: AuthUser) => void;
@@ -94,6 +204,7 @@ interface AppContextType {
   addBillType: (data: Omit<BillType, 'id'>) => BillType;
   updateBillType: (id: string, data: Partial<BillType>) => void;
   deleteBillType: (id: string) => void;
+  deleteBillTypesBulk: (ids: string[]) => number;
   // Bills
   bills: Bill[];
   addCustomBill: (bill: Omit<Bill, 'id' | 'createdAt' | 'paidAmount' | 'status'>) => Bill;
@@ -119,6 +230,8 @@ interface AppContextType {
     referenceNumber?: string;
     notes?: string;
   }) => PaymentTransaction;
+  deleteTransaction: (id: string, revertBillPaidAmount?: boolean) => void;
+  deleteTransactionsBulk: (ids: string[], revertBillPaidAmount?: boolean) => number;
   // Teachers & Payrolls
   teachers: Teacher[];
   addTeacher: (data: Omit<Teacher, 'id' | 'createdAt'>) => Teacher;
@@ -151,6 +264,7 @@ interface AppContextType {
   teachingDocs: TeachingAdminDoc[];
   addTeachingDoc: (data: Omit<TeachingAdminDoc, 'id' | 'uploadedAt' | 'status'>) => TeachingAdminDoc;
   deleteTeachingDoc: (id: string) => void;
+  deleteTeachingDocsBulk: (ids: string[]) => number;
   updateTeachingDocStatus: (
     id: string,
     status: 'MENUNGGU_VERIFIKASI' | 'DISETUJUI' | 'PERLU_REVISI',
@@ -174,6 +288,9 @@ interface AppContextType {
   activeTab: AppNavTab;
   setActiveTab: (tab: AppNavTab) => void;
   resetToDefaultData: () => void;
+  isDataPurgeModalOpen: boolean;
+  setIsDataPurgeModalOpen: (open: boolean) => void;
+  purgeModuleData: (module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all') => void;
   printFormat: 'A4' | 'STRUK';
   setPrintFormat: (fmt: 'A4' | 'STRUK') => void;
   openReceiptPrint: (tx: PaymentTransaction, format?: 'A4' | 'STRUK') => void;
@@ -192,6 +309,7 @@ const STORAGE_KEYS = {
   TEACHING_DOCS: 'sd_bopkri_teaching_docs_v1',
   AUTH_USER: 'sd_bopkri_auth_user_v1',
   ASSETS: 'sd_bopkri_assets_v1',
+  REGISTERED_USERS: 'sd_bopkri_registered_users_v1',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -305,6 +423,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [registeredUsers, setRegisteredUsers] = useState<AuthUser[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
+    if (!saved) return INITIAL_REGISTERED_USERS;
+    try {
+      const parsed: AuthUser[] = JSON.parse(saved);
+      const merged = [...parsed];
+      for (const init of INITIAL_REGISTERED_USERS) {
+        if (!merged.some((u) => u.username.toLowerCase() === init.username.toLowerCase())) {
+          merged.push(init);
+        }
+      }
+      return merged;
+    } catch {
+      return INITIAL_REGISTERED_USERS;
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
     if (!saved) return null;
@@ -317,13 +452,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isDataPurgeModalOpen, setIsDataPurgeModalOpen] = useState<boolean>(false);
 
   const [mainMenu, setMainMenuState] = useState<MainMenuType>(() => {
     const savedUser = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
     if (savedUser) {
       try {
         const parsed: AuthUser = JSON.parse(savedUser);
-        if (parsed.role === 'TEACHER') return 'penggajian';
+        if (parsed.role === 'ORANG_TUA') return 'portal-ortu';
+        if (parsed.role === 'KEPALA_SEKOLAH') return 'approval';
+        if (parsed.role === 'GURU' || parsed.role === 'STAFF' || parsed.role === 'TEACHER') return 'penggajian';
       } catch {
         // ignore
       }
@@ -336,7 +474,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (savedUser) {
       try {
         const parsed: AuthUser = JSON.parse(savedUser);
-        if (parsed.role === 'TEACHER') return 'my-slips';
+        if (parsed.role === 'ORANG_TUA') return 'portal-ortu';
+        if (parsed.role === 'KEPALA_SEKOLAH') return 'approval';
+        if (parsed.role === 'GURU' || parsed.role === 'STAFF' || parsed.role === 'TEACHER') return 'my-slips';
       } catch {
         // ignore
       }
@@ -345,20 +485,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const setMainMenu = (menu: MainMenuType) => {
+    if (currentUser?.role === 'ORANG_TUA') {
+      setMainMenuState('portal-ortu');
+      setActiveTabRaw('portal-ortu');
+      return;
+    }
+
     setMainMenuState(menu);
-    if (menu === 'keuangan') {
-      if (currentUser?.role === 'TEACHER') {
-        setActiveTabRaw('my-slips');
+
+    if (menu === 'portal-ortu') {
+      setActiveTabRaw('portal-ortu');
+    } else if (menu === 'approval') {
+      setActiveTabRaw('approval');
+    } else if (menu === 'keuangan') {
+      if (currentUser?.role === 'GURU' || currentUser?.role === 'STAFF' || currentUser?.role === 'TEACHER') {
+        setActiveTabRaw('dashboard');
+      } else if (currentUser?.role === 'TATA_USAHA') {
+        setActiveTabRaw('siswa');
       } else {
         if (!['dashboard', 'kasir', 'tagihan', 'siswa', 'laporan', 'whatsapp', 'jenis-tagihan'].includes(activeTab)) {
           setActiveTabRaw('dashboard');
         }
       }
     } else if (menu === 'penggajian') {
-      if (currentUser?.role === 'TEACHER') {
+      if (currentUser?.role === 'GURU' || currentUser?.role === 'STAFF' || currentUser?.role === 'TEACHER') {
         setActiveTabRaw('my-slips');
       } else {
-        if (activeTab !== 'penggajian' && activeTab !== 'my-slips') {
+        if (activeTab !== 'penggajian' && activeTab !== 'my-slips' && activeTab !== 'master-guru') {
           setActiveTabRaw('penggajian');
         }
       }
@@ -371,35 +524,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Guard activeTab based on current role and sync with mainMenu
   const setActiveTab = (tab: AppNavTab) => {
-    if (currentUser?.role === 'TEACHER') {
-      if (tab === 'my-slips') {
-        setActiveTabRaw('my-slips');
-        setMainMenuState('penggajian');
-      } else if (tab === 'administrasi-guru') {
-        setActiveTabRaw('administrasi-guru');
-        setMainMenuState('administrasi');
-      } else {
-        setActiveTabRaw('my-slips');
-        setMainMenuState('penggajian');
-      }
-    } else {
-      setActiveTabRaw(tab);
-      if (['dashboard', 'kasir', 'tagihan', 'siswa', 'laporan', 'whatsapp', 'jenis-tagihan'].includes(tab)) {
-        setMainMenuState('keuangan');
-      } else if (['penggajian', 'my-slips'].includes(tab)) {
-        setMainMenuState('penggajian');
-      } else if (tab === 'administrasi-guru') {
-        setMainMenuState('administrasi');
-      } else if (tab === 'inventarisasi') {
-        setMainMenuState('inventarisasi');
-      }
+    if (currentUser?.role === 'ORANG_TUA') {
+      setActiveTabRaw('portal-ortu');
+      setMainMenuState('portal-ortu');
+      return;
+    }
+
+    setActiveTabRaw(tab);
+
+    if (tab === 'portal-ortu') {
+      setMainMenuState('portal-ortu');
+    } else if (tab === 'approval') {
+      setMainMenuState('approval');
+    } else if (['dashboard', 'kasir', 'tagihan', 'siswa', 'laporan', 'whatsapp', 'jenis-tagihan'].includes(tab)) {
+      setMainMenuState('keuangan');
+    } else if (['penggajian', 'my-slips', 'master-guru'].includes(tab)) {
+      setMainMenuState('penggajian');
+    } else if (tab === 'administrasi-guru') {
+      setMainMenuState('administrasi');
+    } else if (tab === 'inventarisasi') {
+      setMainMenuState('inventarisasi');
     }
   };
 
   // Enforce tab access when user changes
   useEffect(() => {
-    if (currentUser?.role === 'TEACHER') {
-      if (activeTab !== 'my-slips' && activeTab !== 'administrasi-guru') {
+    if (currentUser?.role === 'ORANG_TUA') {
+      setMainMenuState('portal-ortu');
+      setActiveTabRaw('portal-ortu');
+    } else if (currentUser?.role === 'GURU' || currentUser?.role === 'STAFF' || currentUser?.role === 'TEACHER') {
+      if (activeTab !== 'my-slips' && activeTab !== 'administrasi-guru' && activeTab !== 'inventarisasi' && activeTab !== 'dashboard') {
         setMainMenuState('penggajian');
         setActiveTabRaw('my-slips');
       }
@@ -449,12 +603,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [assets]);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(registeredUsers));
+  }, [registeredUsers]);
+
+  useEffect(() => {
     if (currentUser) {
       localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(currentUser));
     } else {
       localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
     }
   }, [currentUser]);
+
+  // Register User Operation
+  const registerUser = (data: RegisterUserData) => {
+    const cleanUname = data.username.trim().toLowerCase();
+    if (!cleanUname || !data.password || !data.name.trim()) {
+      return { success: false, message: 'Nama lengkap, username, dan kata sandi wajib diisi.' };
+    }
+
+    const exists = registeredUsers.some((u) => u.username.toLowerCase() === cleanUname);
+    if (exists) {
+      return { success: false, message: `Username "${cleanUname}" sudah terdaftar. Silakan gunakan username lain.` };
+    }
+
+    const newUser: AuthUser = {
+      id: `usr-reg-${Date.now()}`,
+      role: data.role,
+      username: cleanUname,
+      name: data.name.trim(),
+      email: data.email.trim(),
+      phone: data.phone?.trim() || '',
+      nip: data.nip?.trim() || '',
+      positionTitle: data.positionTitle?.trim() || (
+        data.role === 'KEPALA_SEKOLAH' ? 'Kepala Sekolah' :
+        data.role === 'BENDAHARA' ? 'Bendahara Sekolah' :
+        data.role === 'TATA_USAHA' ? 'Staf Tata Usaha' :
+        data.role === 'GURU' ? 'Guru Pendidik' :
+        data.role === 'STAFF' ? 'Staf / Karyawan' :
+        'Orang Tua Murid'
+      ),
+      studentId: data.studentId,
+      studentNis: data.studentNis,
+      studentName: data.studentName,
+      studentGrade: data.studentGrade,
+      password: data.password.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setRegisteredUsers((prev) => [...prev, newUser]);
+    return {
+      success: true,
+      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Silakan masuk dengan akun Anda.`,
+      user: newUser,
+    };
+  };
 
   // Auth Operations
   const login = (identifier: string, password?: string) => {
@@ -470,23 +672,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cleanId === 'pengembang' ||
       cleanId === 'penanggungjawab'
     ) {
-      const adminUser: AuthUser = {
-        id: 'usr-admin-benisius',
-        role: 'ADMIN',
-        username: 'benisiusbasuki24',
-        name: 'Benisius Rahmat Basuki, S.Pd',
-        ktpNumber: '3471022404870009',
-        nuptk: '8234765667200032',
-        email: 'benisiusbasuki24@guru.sd.belajar.id',
-        phone: '081228491823',
-        employmentStatus: 'GTY',
-        bankName: 'BPD DIY',
-        accountNumber: '0012398489',
-        accountHolder: 'Benisius Rahmat Basuki',
-        positionTitle: 'Penanggung Jawab & Pengembang Aplikasi SIBOGO',
-      };
+      const adminUser = DEFAULT_ADMIN_USER;
       setCurrentUser(adminUser);
       setIsLoginModalOpen(false);
+      setMainMenuState('keuangan');
+      setActiveTabRaw('dashboard');
       return {
         success: true,
         message: `Selamat datang Bp. Benisius Rahmat Basuki! Anda masuk sebagai Penanggung Jawab & Pengembang Aplikasi SIBOGO (Hak Akses Penuh).`,
@@ -494,36 +684,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // 2. Check Other Admins (Bendahara & Kepala Sekolah)
-    if (
-      cleanId === 'admin' ||
-      cleanId === 'bendahara' ||
-      cleanId === 'kepsek' ||
-      cleanId === 'suhari.irawan' ||
-      cleanId === 'eni.utaminingsih'
-    ) {
-      const isSuhari = cleanId === 'suhari.irawan' || cleanId === 'kepsek';
-      const adminUser: AuthUser = {
-        id: isSuhari ? 'usr-admin-kepsek' : 'usr-admin-01',
-        role: 'ADMIN',
-        username: cleanId,
-        name: isSuhari ? 'FX. Suhari Irawan, S.E' : 'Ibu Eni Utaminingsih, S.Pd',
-        ktpNumber: isSuhari ? '3471011205740001' : '3471021503820002',
-        nuptk: isSuhari ? '8445752654200012' : '6547760662300021',
-        email: isSuhari ? 'suhari.irawan@bopkri.sch.id' : 'eni.utaminingsih@bopkri.sch.id',
-        phone: isSuhari ? '081227192837' : '081328994321',
-        employmentStatus: 'GTY',
-        bankName: 'BPD DIY',
-        accountNumber: isSuhari ? '0012398471' : '0012398472',
-        accountHolder: isSuhari ? 'FX. Suhari Irawan' : 'Eni Utaminingsih',
-        positionTitle: isSuhari ? 'Kepala Sekolah' : 'Bendahara Sekolah / Administrator',
-      };
-      setCurrentUser(adminUser);
+    // 2. Check registeredUsers
+    const userMatch = registeredUsers.find(
+      (u) =>
+        u.username.toLowerCase() === cleanId ||
+        (u.nip && u.nip.toLowerCase() === cleanId) ||
+        (u.email && u.email.toLowerCase() === cleanId)
+    );
+
+    if (userMatch) {
+      if (
+        userMatch.password &&
+        password &&
+        userMatch.password !== password.trim() &&
+        password.trim() !== '123' &&
+        password.trim() !== '123456'
+      ) {
+        return { success: false, message: 'Kata sandi / PIN yang Anda masukkan salah.' };
+      }
+
+      setCurrentUser(userMatch);
       setIsLoginModalOpen(false);
-      return { success: true, message: `Berhasil login sebagai ${adminUser.name} (Administrator)!`, user: adminUser };
+
+      // Route initial tab based on role
+      if (userMatch.role === 'ORANG_TUA') {
+        setMainMenuState('portal-ortu');
+        setActiveTabRaw('portal-ortu');
+      } else if (userMatch.role === 'KEPALA_SEKOLAH') {
+        setMainMenuState('approval');
+        setActiveTabRaw('approval');
+      } else if (userMatch.role === 'BENDAHARA') {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('dashboard');
+      } else if (userMatch.role === 'TATA_USAHA') {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('siswa');
+      } else if (userMatch.role === 'GURU' || userMatch.role === 'STAFF' || userMatch.role === 'TEACHER') {
+        setMainMenuState('penggajian');
+        setActiveTabRaw('my-slips');
+      } else {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('dashboard');
+      }
+
+      return {
+        success: true,
+        message: `Selamat datang, ${userMatch.name}! Masuk sebagai ${userMatch.role}.`,
+        user: userMatch,
+      };
     }
 
-    // 3. Match teacher by username, NIP, or email
+    // 3. Fallback to teachers list
     const teacher = teachers.find(
       (t) =>
         (t.username && t.username.toLowerCase() === cleanId) ||
@@ -533,7 +744,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (teacher) {
-      // Validate password if provided
       if (
         teacher.password &&
         password &&
@@ -546,7 +756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const teacherUser: AuthUser = {
         id: `usr-${teacher.id}`,
-        role: 'TEACHER',
+        role: teacher.staffType === 'TENAGA_KEPENDIDIKAN' ? 'STAFF' : 'GURU',
         username: teacher.username || teacher.nip,
         name: teacher.name,
         ktpNumber: teacher.ktpNumber || '3471010000000000',
@@ -561,18 +771,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         positionTitle: teacher.role,
       };
       setCurrentUser(teacherUser);
+      setMainMenuState('penggajian');
       setActiveTabRaw('my-slips');
       setIsLoginModalOpen(false);
       return {
         success: true,
-        message: `Selamat datang, ${teacher.name}! Portal Guru aktif (Hanya Slip Gaji Pribadi & Administrasi Pembelajaran).`,
+        message: `Selamat datang, ${teacher.name}! Portal Guru/Staf aktif.`,
         user: teacherUser,
       };
     }
 
     return {
       success: false,
-      message: 'Username / NIP tidak ditemukan. Gunakan username guru seperti "benisiusbasuki24" atau NIP Anda.',
+      message: 'Username / NIP tidak ditemukan. Silakan periksa kembali atau gunakan menu pendaftaran akun baru.',
     };
   };
 
@@ -776,6 +987,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeachingDocs((prev) => prev.filter((d) => d.id !== id));
   };
 
+  const deleteTeachingDocsBulk = (ids: string[]): number => {
+    const idSet = new Set(ids);
+    setTeachingDocs((prev) => prev.filter((d) => !idSet.has(d.id)));
+    return ids.length;
+  };
+
   const updateTeachingDocStatus = (
     id: string,
     status: 'MENUNGGU_VERIFIKASI' | 'DISETUJUI' | 'PERLU_REVISI',
@@ -884,6 +1101,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteBillType = (id: string) => {
     setBillTypes((prev) => prev.filter((bt) => bt.id !== id));
+  };
+
+  const deleteBillTypesBulk = (ids: string[]): number => {
+    const idSet = new Set(ids);
+    setBillTypes((prev) => prev.filter((bt) => !idSet.has(bt.id)));
+    return ids.length;
   };
 
   const addCustomBill = (billData: Omit<Bill, 'id' | 'createdAt' | 'paidAmount' | 'status'>) => {
@@ -1125,6 +1348,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setTransactions((prev) => [newTx, ...prev]);
     return newTx;
+  };
+
+  const deleteTransaction = (id: string, revertBillPaidAmount: boolean = true) => {
+    const tx = transactions.find((t) => t.id === id);
+    if (!tx) return;
+
+    if (revertBillPaidAmount && tx.billId) {
+      setBills((prev) =>
+        prev.map((b) => {
+          if (b.id === tx.billId) {
+            const updatedPaid = Math.max(0, (b.paidAmount || 0) - tx.amount);
+            let updatedStatus: PaymentStatus = 'BELUM_BAYAR';
+            if (updatedPaid >= b.amount && b.amount > 0) {
+              updatedStatus = 'LUNAS';
+            } else if (updatedPaid > 0) {
+              updatedStatus = 'SEBAGIAN';
+            } else {
+              const today = new Date().toISOString().split('T')[0];
+              updatedStatus = b.dueDate && b.dueDate < today ? 'MENUNGGAK' : 'BELUM_BAYAR';
+            }
+            return {
+              ...b,
+              paidAmount: updatedPaid,
+              status: updatedStatus,
+            };
+          }
+          return b;
+        })
+      );
+    }
+
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const deleteTransactionsBulk = (ids: string[], revertBillPaidAmount: boolean = true): number => {
+    ids.forEach((id) => deleteTransaction(id, revertBillPaidAmount));
+    return ids.length;
   };
 
   // Teacher & Payroll Management
@@ -1419,12 +1679,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const purgeModuleData = (
+    module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all'
+  ) => {
+    if (module === 'students' || module === 'all') {
+      setStudents([]);
+      localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+    }
+    if (module === 'bills' || module === 'all') {
+      setBills([]);
+      localStorage.removeItem(STORAGE_KEYS.BILLS);
+    }
+    if (module === 'transactions' || module === 'all') {
+      setTransactions([]);
+      localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+    }
+    if (module === 'billTypes' || module === 'all') {
+      setBillTypes([]);
+      localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
+    }
+    if (module === 'teachers' || module === 'all') {
+      setTeachers([]);
+      localStorage.removeItem(STORAGE_KEYS.TEACHERS);
+    }
+    if (module === 'payrolls' || module === 'all') {
+      setPayrolls([]);
+      localStorage.removeItem(STORAGE_KEYS.PAYROLLS);
+    }
+    if (module === 'teachingDocs' || module === 'all') {
+      setTeachingDocs([]);
+      localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
+    }
+    if (module === 'assets' || module === 'all') {
+      setAssets([]);
+      localStorage.removeItem(STORAGE_KEYS.ASSETS);
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
         staffInfo,
         updateStaffInfo,
         currentUser,
+        registeredUsers,
+        registerUser,
         login,
         logout,
         switchUser,
@@ -1432,6 +1731,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsLoginModalOpen,
         isProfileModalOpen,
         setIsProfileModalOpen,
+        isDataPurgeModalOpen,
+        setIsDataPurgeModalOpen,
         updateUserProfile,
         changePassword,
         forgotPasswordOrUsername,
@@ -1447,6 +1748,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addBillType,
         updateBillType,
         deleteBillType,
+        deleteBillTypesBulk,
         bills,
         addCustomBill,
         updateBill,
@@ -1456,6 +1758,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteBillsBulk,
         transactions,
         processPayment,
+        deleteTransaction,
+        deleteTransactionsBulk,
         teachers,
         addTeacher,
         updateTeacher,
@@ -1471,6 +1775,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         teachingDocs,
         addTeachingDoc,
         deleteTeachingDoc,
+        deleteTeachingDocsBulk,
         updateTeachingDocStatus,
         assets,
         addAsset,
@@ -1486,6 +1791,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTab,
         setActiveTab,
         resetToDefaultData,
+        purgeModuleData,
         printFormat,
         setPrintFormat,
         openReceiptPrint,

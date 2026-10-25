@@ -136,7 +136,15 @@ export interface Teacher {
   createdAt: string;
 }
 
-export type UserRole = 'ADMIN' | 'TEACHER';
+export type UserRole =
+  | 'ADMIN'           // Penanggung Jawab & Pengembang (Benisius) / Super Admin
+  | 'KEPALA_SEKOLAH'  // Kepala Sekolah
+  | 'BENDAHARA'       // Bendahara
+  | 'TATA_USAHA'      // Tata Usaha
+  | 'GURU'            // Guru
+  | 'STAFF'           // Staff / Karyawan
+  | 'ORANG_TUA'       // Orang Tua Murid
+  | 'TEACHER';        // Compatibility alias for Guru
 
 export interface AuthUser {
   id: string;
@@ -145,15 +153,22 @@ export interface AuthUser {
   name: string; // Nama Lengkap
   ktpNumber?: string; // No. KTP (16 digit)
   nuptk?: string; // NUPTK (16 digit)
+  nip?: string; // NIP
   email: string;
-  phone?: string; // No. HP
+  phone?: string; // No. HP / WhatsApp
   employmentStatus?: EmploymentStatus; // GTY | PTY | GTTY | PTTY
   bankName?: string;
   accountNumber?: string;
   accountHolder?: string;
   password?: string;
-  teacherId?: string; // Terhubung ke ID guru jika role TEACHER
+  teacherId?: string; // Terhubung ke ID guru jika role GURU/STAFF/TEACHER
   positionTitle?: string;
+  // Link khusus Orang Tua Murid:
+  studentId?: string; // ID Siswa anak
+  studentNis?: string; // NIS Siswa anak
+  studentName?: string; // Nama Siswa anak
+  studentGrade?: string; // Kelas Siswa anak
+  createdAt?: string;
 }
 
 export type TeachingDocCategory =

@@ -1,4 +1,5 @@
 import React from 'react';
+import { AdminDataPurgeModal } from './components/AdminDataPurgeModal';
 import { BillTypesView } from './components/BillTypesView';
 import { BillsManagementView } from './components/BillsManagementView';
 import { CashierPaymentModal } from './components/CashierPaymentModal';
@@ -128,6 +129,7 @@ const MainLayout: React.FC = () => {
       <CashierPaymentModal />
       <ReceiptModal />
       <SalarySlipModal />
+      <AdminDataPurgeModal />
 
       {/* Footer */}
       <footer className="no-print mt-auto border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">

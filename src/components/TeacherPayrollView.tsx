@@ -39,10 +39,15 @@ export const TeacherPayrollView: React.FC = () => {
     addPayrollRecord,
     deletePayrollRecord,
     deletePayrollsBulk,
+    purgeModuleData,
+    setIsDataPurgeModalOpen,
+    currentUser,
     markPayrollTransferred,
     setActiveSlip,
     staffInfo,
   } = useApp();
+
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   const [activeSubTab, setActiveSubTab] = useState<'SLIPS' | 'TEACHERS'>('SLIPS');
   const [periodFilter, setPeriodFilter] = useState<string>('Oktober 2026');
@@ -372,6 +377,52 @@ export const TeacherPayrollView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsDataPurgeModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors"
+                title="Buka Pusat Pengelolaan & Penghapusan Data Sistem"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-slate-600" />
+                <span>Pusat Hapus Data</span>
+              </button>
+              {activeSubTab === 'SLIPS' && payrolls.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`⚠️ PERINGATAN ADMIN: Apakah Anda yakin ingin MENGHAPUS SEMUA ${payrolls.length} data riwayat slip penggajian guru?\nSeluruh slip gaji akan dikosongkan.`)) {
+                      purgeModuleData('payrolls');
+                      setSelectedSlipIds([]);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                  title="Kosongkan Semua Riwayat Slip Gaji"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  <span>Kosongkan Riwayat Penggajian</span>
+                </button>
+              )}
+              {activeSubTab === 'TEACHERS' && teachers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`⚠️ PERINGATAN ADMIN: Apakah Anda yakin ingin MENGHAPUS SEMUA ${teachers.length} data guru/staf?\nSeluruh data dewan guru akan dikosongkan.`)) {
+                      purgeModuleData('teachers');
+                      setSelectedTeacherIds([]);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                  title="Kosongkan Semua Data Guru"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  <span>Kosongkan Semua Guru</span>
+                </button>
+              )}
+            </>
+          )}
+
           <button
             onClick={handleOpenAddTeacher}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
