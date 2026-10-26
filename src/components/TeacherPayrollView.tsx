@@ -45,9 +45,11 @@ export const TeacherPayrollView: React.FC = () => {
     markPayrollTransferred,
     setActiveSlip,
     staffInfo,
+    isSuperAdmin,
+    showToast,
   } = useApp();
 
-  const isAdmin = currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'ADMIN' || isSuperAdmin;
 
   const [activeSubTab, setActiveSubTab] = useState<'SLIPS' | 'TEACHERS'>('SLIPS');
   const [periodFilter, setPeriodFilter] = useState<string>('Oktober 2026');
@@ -273,6 +275,7 @@ export const TeacherPayrollView: React.FC = () => {
       });
 
       setIsPayrollModalOpen(false);
+      showToast('Data berhasil diunggah', 'success');
       setActiveSlip(record);
     } catch (err: any) {
       alert(err.message || 'Gagal menyimpan penggajian');

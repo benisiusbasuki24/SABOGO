@@ -1,42 +1,61 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
+import { UserRole } from '../types';
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Crown,
-  Download,
   KeyRound,
   Lock,
   LogIn,
+  Mail,
+  Phone,
   ShieldCheck,
-  Smartphone,
   Sparkles,
+  User,
   UserCheck,
+  UserPlus,
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, staffInfo } = useApp();
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const { login, registerUser, staffInfo } = useApp();
+
+  // Mode: 'LOGIN' (default) or 'REGISTER'
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+
+  // Login Form States
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Register Form States
+  const [regName, setRegName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRole, setRegRole] = useState<UserRole>('GURU');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('08');
+  const [regNip, setRegNip] = useState('');
+  const [regStudentName, setRegStudentName] = useState('');
+  const [regStudentNis, setRegStudentNis] = useState('');
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!identifier.trim()) {
+    if (!loginIdentifier.trim()) {
       setErrorMessage('Silakan masukkan Username atau NIP Anda.');
       return;
     }
 
     setIsLoading(true);
-    const result = login(identifier, password);
+    const result = login(loginIdentifier, loginPassword);
     setIsLoading(false);
 
     if (result.success) {
@@ -46,25 +65,68 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = (uname: string, pwd = '123') => {
-    setIdentifier(uname);
-    setPassword(pwd);
+  const handleQuickLoginBenisius = () => {
     setErrorMessage(null);
     setIsLoading(true);
-    const result = login(uname, pwd);
+    const result = login('benisiusbasuki24', '123');
     setIsLoading(false);
-
     if (result.success) {
       setSuccessMessage(result.message);
     } else {
       setErrorMessage(result.message);
+    }
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const cleanUsername = regUsername.trim().toLowerCase();
+
+    // Validation: Username must be at least 8 characters
+    if (cleanUsername.length < 8) {
+      setErrorMessage('Username minimal harus terdiri dari 8 karakter!');
+      return;
+    }
+
+    if (!regName.trim() || !regPassword.trim() || !regEmail.trim()) {
+      setErrorMessage('Nama lengkap, kata sandi, dan alamat email wajib diisi.');
+      return;
+    }
+
+    setIsLoading(true);
+    const res = registerUser({
+      name: regName.trim(),
+      username: cleanUsername,
+      password: regPassword.trim(),
+      role: regRole,
+      email: regEmail.trim(),
+      phone: regPhone.trim(),
+      nip: regNip.trim() || undefined,
+      studentName: regStudentName.trim() || undefined,
+      studentNis: regStudentNis.trim() || undefined,
+    });
+    setIsLoading(false);
+
+    if (res.success) {
+      setSuccessMessage(`${res.message} Anda sekarang dapat langsung masuk.`);
+      // Prefill login
+      setLoginIdentifier(cleanUsername);
+      setLoginPassword(regPassword.trim());
+      // Switch to login tab after brief pause
+      setTimeout(() => {
+        setActiveTab('LOGIN');
+      }, 1500);
+    } else {
+      setErrorMessage(res.message);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-6 lg:p-8 font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* Top Bar with Minimal Branding */}
+      {/* Top Header Row with Minimal Branding */}
       <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-2.5">
           <img
@@ -74,7 +136,7 @@ export const LoginPage: React.FC = () => {
             referrerPolicy="no-referrer"
           />
           <div>
-            <span className="text-sm font-extrabold tracking-tight text-white flex items-center gap-1.5">
+            <span className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
               <span>SIBOGO</span>
               <span className="text-[10px] font-bold bg-blue-500/30 text-blue-300 border border-blue-400/30 px-1.5 py-0.2 rounded">
                 BOPKRI Gondolayu
@@ -92,8 +154,8 @@ export const LoginPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Center Area: Form Login dan Nama Aplikasi */}
-      <main className="max-w-md w-full mx-auto my-6 sm:my-10 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+      {/* Main Center Area */}
+      <main className="max-w-md w-full mx-auto my-6 sm:my-8 space-y-5 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Brand Hero Heading */}
         <div className="text-center space-y-2">
@@ -101,7 +163,7 @@ export const LoginPage: React.FC = () => {
             <img
               src="/src/assets/images/logo_bopkri_gondolayu.png"
               alt="Logo SD BOPKRI Gondolayu"
-              className="w-14 h-14 object-contain drop-shadow"
+              className="w-13 h-13 object-contain drop-shadow"
               referrerPolicy="no-referrer"
             />
           </div>
@@ -111,39 +173,59 @@ export const LoginPage: React.FC = () => {
           </h1>
           
           <div className="flex items-center justify-center gap-2 flex-wrap pt-0.5">
-            <span className="text-sm font-semibold text-blue-200">
-              Sistem Informasi BOPKRI Gondolayu
+            <span className="text-xs sm:text-sm font-semibold text-blue-200">
+              Sistem Informasi SD BOPKRI Gondolayu
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">
               "{staffInfo.tagline || 'Cerdas Berkarakter'}"
             </span>
           </div>
-
-          <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed pt-1">
-            Silakan masuk untuk mengakses menu Keuangan Sekolah, Penggajian, Administrasi Mengajar, dan Inventarisasi.
-          </p>
         </div>
 
-        {/* Login Card Container */}
+        {/* Card Container */}
         <div className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden">
           
-          {/* Card Top Banner */}
-          <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 px-6 py-4 text-white flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-300" />
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-100">
-                Form Masuk Akun
-              </span>
-            </div>
-            <span className="text-[11px] font-semibold text-blue-200">
-              T.A. {staffInfo.academicYear}
-            </span>
+          {/* Default Login & Register Mode Switcher Tabs */}
+          <div className="grid grid-cols-2 bg-slate-100 border-b border-slate-200 p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('LOGIN');
+                setErrorMessage(null);
+                setSuccessMessage(null);
+              }}
+              className={`py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'LOGIN'
+                  ? 'bg-blue-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Masuk (Login)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('REGISTER');
+                setErrorMessage(null);
+                setSuccessMessage(null);
+              }}
+              className={`py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'REGISTER'
+                  ? 'bg-blue-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Daftar Akun Baru</span>
+            </button>
           </div>
 
-          {/* Form Content */}
-          <div className="p-6 sm:p-7 space-y-5">
+          {/* Form Area */}
+          <div className="p-6 sm:p-7 space-y-4">
             
-            {/* Error Message */}
+            {/* Feedback Notifications */}
             {errorMessage && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2 animate-in fade-in duration-150">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
@@ -151,7 +233,6 @@ export const LoginPage: React.FC = () => {
               </div>
             )}
 
-            {/* Success Message */}
             {successMessage && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 animate-in fade-in duration-150">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -159,203 +240,297 @@ export const LoginPage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {/* Username Input */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Username / NIP / Email Pengguna
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: benisiusbasuki24 atau admin"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium transition-all"
-                  />
-                  <UserCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Kata Sandi / PIN
+            {/* TAB 1: FORM LOGIN (DEFAULT TAMPILAN) */}
+            {activeTab === 'LOGIN' && (
+              <form onSubmit={handleLoginSubmit} className="space-y-4 animate-in fade-in duration-150">
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Username / NIP / Email Pengguna
                   </label>
-                  <span className="text-[10px] text-slate-400">
-                    Bawaan contoh: <strong>123</strong>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: benisiusbasuki24 atau mariakristianti"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium transition-all"
+                    />
+                    <UserCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      Kata Sandi / PIN
+                    </label>
+                    <span className="text-[10px] text-slate-400">
+                      Bawaan contoh: <strong>123</strong>
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="Masukkan kata sandi (atau 123)"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium transition-all"
+                    />
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                  <div className="text-right mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPasswordOpen(true)}
+                      className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                    >
+                      Lupa Username atau Kata Sandi?
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3 px-4 bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>{isLoading ? 'Memproses Masuk...' : 'Masuk ke Aplikasi SIBOGO'}</span>
+                </button>
+
+                {/* SINGLE EXCLUSIVE SHORTCUT: SUPER ADMIN (BENISIUS) */}
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block text-center">
+                    Akses Cepat Pengembang Sistem:
                   </span>
-                </div>
-                <div className="relative">
-                  <input
-                    type="password"
-                    placeholder="Masukkan kata sandi (atau 123)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium transition-all"
-                  />
-                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                </div>
-                <div className="text-right mt-1.5">
+                  
                   <button
                     type="button"
-                    onClick={() => setIsForgotPasswordOpen(true)}
-                    className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                    onClick={handleQuickLoginBenisius}
+                    className="w-full p-2.5 text-left border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-blue-50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 rounded-xl transition-all shadow-2xs group flex items-center justify-between"
                   >
-                    Lupa Username atau Kata Sandi?
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-950 text-amber-300 flex items-center justify-center font-black text-xs shrink-0 border border-amber-300/40 group-hover:scale-105 transition-transform">
+                        <Crown className="w-4 h-4 text-amber-300" />
+                      </div>
+                      <div className="leading-tight">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-blue-950">
+                            Benisius Rahmat Basuki, S.Pd
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-400 text-amber-950">
+                            Super Admin
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          user: <strong>benisiusbasuki24</strong> (Akses Hapus Penuh)
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-blue-800 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
-              </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 px-4 bg-blue-800 hover:bg-blue-900 active:bg-blue-950 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-blue-900/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>{isLoading ? 'Memproses Masuk...' : 'Masuk ke Aplikasi SIBOGO'}</span>
-              </button>
-            </form>
+              </form>
+            )}
+
+            {/* TAB 2: FORM REGISTER (DAFTAR AKUN BARU) */}
+            {activeTab === 'REGISTER' && (
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5 animate-in fade-in duration-150">
+                
+                {/* 1. Nama Lengkap */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nama Lengkap <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Hendrik Prasetyo atau Maria S.Pd"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"
+                    />
+                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+
+                {/* 2. Pilihan Jenis Pengguna (6 User Roles) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Jenis Pengguna (Role Akun) <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value as UserRole)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-bold"
+                  >
+                    <option value="KEPALA_SEKOLAH">Kepala Sekolah (Approval, View Gaji & Keuangan)</option>
+                    <option value="BENDAHARA">Bendahara (Approval Keuangan, Full Keuangan & Gaji)</option>
+                    <option value="TATA_USAHA">Tata Usaha (Kasir, Data Siswa, SPMB, Sarpras)</option>
+                    <option value="GURU">Guru (Slip Gaji Saya & Administrasi Modul Ajar)</option>
+                    <option value="STAFF">Staff / Karyawan (Slip Gaji Saya & Sarpras)</option>
+                    <option value="ORANG_TUA">Orang Tua Murid (Cek Tagihan & Riwayat Pembayaran)</option>
+                  </select>
+                </div>
+
+                {/* 3. Username with STRICT MINIMUM 8 CHARACTERS Validation */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      Username Baru <span className="text-red-500">*</span>
+                    </label>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        regUsername.trim().length >= 8
+                          ? 'text-emerald-700'
+                          : 'text-amber-700'
+                      }`}
+                    >
+                      {regUsername.trim().length}/8 Karakter (Min. 8)
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Minimal 8 karakter (contoh: mariaguru26)"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                      className={`w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border rounded-xl focus:outline-hidden focus:ring-2 focus:bg-white text-slate-900 font-mono ${
+                        regUsername.length > 0 && regUsername.length < 8
+                          ? 'border-amber-400 focus:ring-amber-500'
+                          : regUsername.length >= 8
+                          ? 'border-emerald-400 focus:ring-emerald-500'
+                          : 'border-slate-300 focus:ring-blue-600'
+                      }`}
+                    />
+                    <UserCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                  {regUsername.length > 0 && regUsername.length < 8 && (
+                    <span className="text-[10px] text-amber-700 font-medium mt-1 block">
+                      ⚠️ Username masih kurang {8 - regUsername.length} karakter lagi.
+                    </span>
+                  )}
+                </div>
+
+                {/* 4. Kata Sandi */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Kata Sandi / PIN <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      placeholder="Masukkan kata sandi akun"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"
+                    />
+                    <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+
+                {/* 5. Email & WhatsApp */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Alamat Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="email@gmail.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      No. WhatsApp <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="08123456789"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      className="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Conditional Fields: If Orang Tua */}
+                {regRole === 'ORANG_TUA' && (
+                  <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                    <span className="text-[10px] font-bold text-blue-900 uppercase block">
+                      Data Siswa Putra/Putri Anda (Opsional):
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nama Murid (Anak)"
+                        value={regStudentName}
+                        onChange={(e) => setRegStudentName(e.target.value)}
+                        className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
+                      />
+                      <input
+                        type="text"
+                        placeholder="NIS Siswa (e.g. 2024001)"
+                        value={regStudentNis}
+                        onChange={(e) => setRegStudentNis(e.target.value)}
+                        className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Conditional Fields: If Guru / Staff */}
+                {(regRole === 'GURU' || regRole === 'STAFF') && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      NIP / NUPTK / Posisi Jabatan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 198402102010012005 atau Guru Agama"
+                      value={regNip}
+                      onChange={(e) => setRegNip(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading || regUsername.trim().length < 8}
+                  className={`w-full py-2.5 px-4 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    regUsername.trim().length < 8
+                      ? 'bg-slate-400 cursor-not-allowed'
+                      : 'bg-blue-900 hover:bg-blue-950'
+                  }`}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Daftar Akun SIBOGO</span>
+                </button>
+
+              </form>
+            )}
 
             <ForgotPasswordModal
               isOpen={isForgotPasswordOpen}
               onClose={() => setIsForgotPasswordOpen(false)}
               onSuccessPrefill={(uname) => {
-                setIdentifier(uname);
-                setPassword('123');
+                setLoginIdentifier(uname);
+                setLoginPassword('123');
               }}
             />
-
-            {/* In-App Android APK Direct Download Banner */}
-            <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <Smartphone className="w-4 h-4" />
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <span className="text-xs font-bold text-emerald-950 block truncate">
-                    Aplikasi Android SIBOGO (APK)
-                  </span>
-                  <span className="text-[10px] text-emerald-700 block">
-                    v1.0 Resmi · 1.5 MB · Standalone
-                  </span>
-                </div>
-              </div>
-              <a
-                href="./SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
-                download="SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-xs transition-colors shrink-0"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Unduh APK</span>
-              </a>
-            </div>
-
-            {/* Quick Demo Logins Section */}
-            <div className="pt-4 border-t border-slate-100 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Pilihan Masuk Cepat (Akun Staf):
-                </span>
-                <span className="text-[10px] text-slate-400">Klik untuk langsung masuk</span>
-              </div>
-
-              {/* PRIMARY PROMINENT CARD: BENISIUS RAHMAT BASUKI (Penanggung Jawab & Pengembang SIBOGO) */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('benisiusbasuki24', '123')}
-                className="w-full p-3 text-left border-2 border-amber-400/90 bg-gradient-to-r from-amber-50 via-blue-50/50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 rounded-2xl transition-all shadow-xs group"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-blue-900 text-amber-300 flex items-center justify-center font-black text-xs shrink-0 shadow-2xs border border-amber-300/40 group-hover:scale-105 transition-transform">
-                      <Crown className="w-4 h-4 text-amber-300" />
-                    </div>
-                    <div className="leading-tight">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-extrabold text-blue-950 group-hover:text-blue-700">
-                          Benisius Rahmat Basuki, S.Pd
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-amber-400 text-amber-950 flex items-center gap-0.5">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Penanggung Jawab & Pengembang
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
-                        user: <strong>benisiusbasuki24</strong> (Hak Akses Penuh Admin)
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-blue-700 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-              </button>
-
-              {/* Secondary Quick Logins Grid */}
-              <div className="grid grid-cols-2 gap-2 text-left">
-                
-                {/* Bendahara */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('admin', '123')}
-                  className="p-2 border border-slate-200 hover:border-blue-300 bg-slate-50 hover:bg-blue-50/50 rounded-xl transition-all group"
-                >
-                  <span className="text-[11px] font-bold text-slate-800 block truncate group-hover:text-blue-900">
-                    Ibu Eni Utaminingsih
-                  </span>
-                  <span className="text-[9px] text-slate-500 block truncate">
-                    Bendahara Sekolah (SPP/Kasir)
-                  </span>
-                </button>
-
-                {/* Kepala Sekolah */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('suhari.irawan', '123')}
-                  className="p-2 border border-slate-200 hover:border-blue-300 bg-slate-50 hover:bg-blue-50/50 rounded-xl transition-all group"
-                >
-                  <span className="text-[11px] font-bold text-slate-800 block truncate group-hover:text-blue-900">
-                    Bp. FX. Suhari Irawan
-                  </span>
-                  <span className="text-[9px] text-slate-500 block truncate">
-                    Kepala Sekolah (Monitoring)
-                  </span>
-                </button>
-
-                {/* Kasir Nastiti */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('nastiti.ken', '123')}
-                  className="p-2 border border-slate-200 hover:border-blue-300 bg-slate-50 hover:bg-blue-50/50 rounded-xl transition-all group"
-                >
-                  <span className="text-[11px] font-bold text-slate-800 block truncate group-hover:text-blue-900">
-                    Nastiti Ken Utami
-                  </span>
-                  <span className="text-[9px] text-slate-500 block truncate">
-                    Kasir & Staf Tata Usaha
-                  </span>
-                </button>
-
-                {/* Guru Kelas (Maria Kristianti) */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin('maria.kristianti', '123')}
-                  className="p-2 border border-slate-200 hover:border-blue-300 bg-slate-50 hover:bg-blue-50/50 rounded-xl transition-all group"
-                >
-                  <span className="text-[11px] font-bold text-slate-800 block truncate group-hover:text-blue-900">
-                    Ibu Maria Kristianti
-                  </span>
-                  <span className="text-[9px] text-slate-500 block truncate">
-                    Guru Kelas (Slip & Modul)
-                  </span>
-                </button>
-
-              </div>
-
-            </div>
 
           </div>
 
@@ -370,7 +545,7 @@ export const LoginPage: React.FC = () => {
 
       </main>
 
-      {/* Bottom Footer Information */}
+      {/* Dynamic Footer Information */}
       <footer className="max-w-6xl w-full mx-auto text-center py-3 text-xs text-slate-400 border-t border-white/10 space-y-1">
         <p className="text-slate-300 font-semibold">
           {staffInfo.schoolName} ({staffInfo.foundationName})
@@ -378,8 +553,11 @@ export const LoginPage: React.FC = () => {
         <p className="text-[11px] text-slate-500">
           {staffInfo.address} · Telp: {staffInfo.phone} · Web: {staffInfo.website || 'www.sdbopkrigondolayu.sch.id'}
         </p>
-        <p className="text-[11px] text-amber-400/90 font-medium pt-1">
-          Penanggung Jawab & Pengembang Aplikasi: <strong>{staffInfo.appDeveloper || 'Benisius Rahmat Basuki, S.Pd'}</strong>
+        <p className="text-[11px] text-slate-400 pt-0.5">
+          © 2024 SIBOGO - SD BOPKRI Gondolayu. All rights reserved.
+        </p>
+        <p className="text-[10px] text-amber-400/90 font-medium">
+          superadmin & apps developer: Benisius R.B
         </p>
       </footer>
 

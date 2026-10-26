@@ -50,7 +50,7 @@ export interface BillType {
   frequency: BillFrequency;
   defaultAmount: number;
   description: string;
-  targetGrades: string[]; // e.g. ["Semua Kelas"] or ["Kelas 1A", "Kelas 1B"]
+  targetGrades: string[]; // e.g. ["pilih nama murid"] or ["Kelas 1A", "Kelas 1B"]
   isActive: boolean;
 }
 
@@ -100,7 +100,7 @@ export interface PaymentTransaction {
   notes?: string;
 }
 
-export type EmploymentStatus = 'GTY' | 'PTY' | 'GTTY' | 'PTTY' | 'HONORER' | 'PNS_DPK';
+export type EmploymentStatus = 'GTY' | 'PTY' | 'GTTY' | 'PTTY' | 'HONORER' | 'PNS_DPK' | 'Honor Sekolah' | 'HONOR_SEKOLAH';
 
 export type StaffType = 'GURU' | 'TENAGA_KEPENDIDIKAN';
 export type Gender = 'L' | 'P';
@@ -112,8 +112,8 @@ export interface Teacher {
   ktpNumber?: string; // No. KTP / NIK (16 digit)
   nuptk?: string; // NUPTK (16 digit)
   staffType?: StaffType; // GURU atau TENAGA_KEPENDIDIKAN
-  role: string; // e.g. "Guru Kelas 1A", "Guru Pendidikan Agama Kristen", "Kasir & Staf TU"
-  status: EmploymentStatus; // GTY, PTY, GTTY, PTTY, HONORER, PNS_DPK
+  role: string; // e.g. "Guru Kelas 1A", "Guru Pendidikan Agama Kristen", "Kasir & Staf TU", "Pustakawan", "Security", "Penjaga Sekolah", "Cleaning Service"
+  status: EmploymentStatus; // GTY, PTY, GTTY, PTTY, HONOR SEKOLAH, PNS_DPK
   gender?: Gender; // L / P
   birthPlace?: string; // Tempat Lahir
   birthDate?: string; // Tanggal Lahir (YYYY-MM-DD)
@@ -125,7 +125,7 @@ export interface Teacher {
   address?: string; // Alamat Tempat Tinggal Lengkap
   phone: string; // WhatsApp guru / pegawai
   email: string;
-  bankName: string; // e.g. "BPD DIY", "BCA", "Mandiri", "BRI", "BNI"
+  bankName: string; // e.g. "Mandiri", "BCA", "BRI", "BNI"
   accountNumber: string;
   accountHolder: string;
   baseSalary: number; // Gaji Pokok default
@@ -137,7 +137,7 @@ export interface Teacher {
 }
 
 export type UserRole =
-  | 'ADMIN'           // Penanggung Jawab & Pengembang (Benisius) / Super Admin
+  | 'ADMIN'           // Administrator (Benisius) / Super Admin
   | 'KEPALA_SEKOLAH'  // Kepala Sekolah
   | 'BENDAHARA'       // Bendahara
   | 'TATA_USAHA'      // Tata Usaha
@@ -156,7 +156,7 @@ export interface AuthUser {
   nip?: string; // NIP
   email: string;
   phone?: string; // No. HP / WhatsApp
-  employmentStatus?: EmploymentStatus; // GTY | PTY | GTTY | PTTY
+  employmentStatus?: EmploymentStatus; // GTY | PTY | GTTY | PTTY | HONOR SEKOLAH
   bankName?: string;
   accountNumber?: string;
   accountHolder?: string;
@@ -296,5 +296,38 @@ export interface InventoryAsset {
   notes?: string;             // Spesifikasi teknis, nomor seri
   createdAt: string;
   updatedAt?: string;
+}
+
+// SPMB (SISTEM PENERIMAAN MURID BARU) TYPES
+export type SPMBStatus = 'MENUNGGU_VERIFIKASI' | 'DITERIMA' | 'CADANGAN' | 'DITOLAK';
+export type SPMBEntryTrack = 'REGULER' | 'ZONASI' | 'PRESTASI' | 'AFIRMASI';
+
+export interface SPMBRegistration {
+  id: string;
+  registrationNumber: string; // e.g. "SPMB-2026/001"
+  nis: string; // Auto-generated NIS e.g. "2026001"
+  fullName: string;
+  gender: 'L' | 'P';
+  birthPlace: string;
+  birthDate: string; // YYYY-MM-DD
+  parentName: string;
+  parentPhone: string; // WhatsApp
+  parentEmail: string;
+  address: string;
+  previousSchool?: string; // Asal TK / PAUD
+  targetGrade: string; // Default "Kelas 1A"
+  entryTrack: SPMBEntryTrack;
+  status: SPMBStatus;
+  registrationDate: string; // ISO string
+  emailNotificationSent: boolean;
+  emailSentAt?: string;
+  notes?: string;
+}
+
+export interface ToastNotification {
+  id: string;
+  message: string;
+  type: 'success' | 'info' | 'warning' | 'error';
+  timestamp?: number;
 }
 

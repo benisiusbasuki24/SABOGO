@@ -10,6 +10,7 @@ import {
   INITIAL_TRANSACTIONS,
 } from '../data/seedData';
 import { INITIAL_INVENTORY_ASSETS } from '../data/seedInventory';
+import { INITIAL_SPMB_REGISTRATIONS } from '../data/seedSPMB';
 import {
   AuthUser,
   Bill,
@@ -20,9 +21,13 @@ import {
   PaymentTransaction,
   PayrollRecord,
   SchoolStaffInfo,
+  SPMBRegistration,
+  SPMBStatus,
   Student,
   Teacher,
   TeachingAdminDoc,
+  ToastNotification,
+  UserRole,
 } from '../types';
 
 export const DEFAULT_ADMIN_USER: AuthUser = {
@@ -30,16 +35,16 @@ export const DEFAULT_ADMIN_USER: AuthUser = {
   role: 'ADMIN',
   username: 'benisiusbasuki24',
   name: 'Benisius Rahmat Basuki, S.Pd',
-  ktpNumber: '3471022404870009',
-  nuptk: '8234765667200032',
+  ktpNumber: '3301082204830001',
+  nuptk: '0',
   email: 'benisiusbasuki24@guru.sd.belajar.id',
-  phone: '081228491823',
-  employmentStatus: 'GTY',
-  bankName: 'BPD DIY',
-  accountNumber: '0012398489',
-  accountHolder: 'Benisius Rahmat Basuki',
-  positionTitle: 'Penanggung Jawab & Pengembang Aplikasi SIBOGO',
-  password: '123',
+  phone: '087716443331',
+  employmentStatus: 'Honor Sekolah',
+  bankName: 'Bank Mandiri',
+  accountNumber: '1370023732932',
+  accountHolder: 'Benisius Rahmat Basuki, S.Pd, Gr',
+  positionTitle: 'SuperAdmin & Pengembang SIBOGO',
+  password: 'Admin123',
 };
 
 export const INITIAL_REGISTERED_USERS: AuthUser[] = [
@@ -48,29 +53,29 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     id: 'usr-kepsek-suhari',
     role: 'KEPALA_SEKOLAH',
     username: 'suhari.irawan',
-    name: 'FX. Suhari Irawan, S.E',
-    nip: '197405122002121003',
-    ktpNumber: '3471011205740001',
-    nuptk: '8445752654200012',
+    name: 'FX. Suhari Irawan, S.E, Gr',
+    nip: '197505122002121001',
+    ktpNumber: '3471011205750001',
+    nuptk: '4532753655200002',
     email: 'suhari.irawan@bopkri.sch.id',
-    phone: '081227192837',
-    employmentStatus: 'GTY',
+    phone: '081234567890',
+    employmentStatus: 'Honor Sekolah',
     positionTitle: 'Kepala Sekolah',
-    password: '123',
+    password: 'Kepsek123',
   },
   {
     id: 'usr-bendahara-eni',
     role: 'BENDAHARA',
-    username: 'admin',
-    name: 'Ibu Eni Utaminingsih, S.Pd',
-    nip: '198203152006042007',
+    username: 'bendahara',
+    name: 'Eni Utaminingsih, S.Pd, Gr',
+    nip: '198203152008012003',
     ktpNumber: '3471021503820002',
-    nuptk: '6547760662300021',
+    nuptk: '7845760662210003',
     email: 'eni.utaminingsih@bopkri.sch.id',
-    phone: '081328994321',
+    phone: '081329876543',
     employmentStatus: 'GTY',
     positionTitle: 'Bendahara Sekolah',
-    password: '123',
+    password: 'Bendahara123',
   },
   {
     id: 'usr-tu-nastiti',
@@ -82,47 +87,47 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     phone: '081328456789',
     employmentStatus: 'PTY',
     positionTitle: 'Kasir & Staf Tata Usaha',
-    password: '123',
+    password: 'kasir123',
   },
   {
     id: 'usr-guru-maria',
     role: 'GURU',
-    username: 'maria.kristianti',
+    username: 'mariakristianti',
     name: 'Maria Kristianti, S.Pd',
-    nip: '198805122014022003',
+    nip: '198402102010012005',
     email: 'maria.kristianti@bopkri.sch.id',
-    phone: '081229876543',
+    phone: '081328123456',
     employmentStatus: 'GTY',
+    teacherId: 'tch-01',
     positionTitle: 'Guru Kelas 1A',
-    teacherId: 't-1',
-    password: '123',
+    password: 'Guru1234',
   },
   {
-    id: 'usr-staff-joko',
+    id: 'usr-staff-agus',
     role: 'STAFF',
-    username: 'stefanus.joko',
-    name: 'Stefanus Joko',
-    nip: '199201102016011002',
-    email: 'stefanus.joko@bopkri.sch.id',
-    phone: '081327654321',
+    username: 'agustriyono',
+    name: 'Agus Triyono',
+    nip: '198806122014021007',
+    email: 'agus.triyono@bopkri.sch.id',
+    phone: '085643219876',
     employmentStatus: 'PTY',
-    positionTitle: 'Staf Sarpras & Karyawan',
-    teacherId: 't-8',
-    password: '123',
+    teacherId: 'tch-08',
+    positionTitle: 'Staf Sarana & Prasarana',
+    password: 'Staff123',
   },
   {
-    id: 'usr-ortu-kevin',
+    id: 'usr-ortu-jonathan',
     role: 'ORANG_TUA',
-    username: 'ortu.kevin',
-    name: 'Bp. Hendra Prasetyo',
-    email: 'hendra.prasetyo@gmail.com',
-    phone: '081223456789',
-    positionTitle: 'Orang Tua / Wali Siswa',
-    studentId: 'std-1',
-    studentNis: '260101',
-    studentName: 'Kevin Jonathan Prasetyo',
-    studentGrade: 'Kelas 1A',
-    password: '123',
+    username: 'ortu.jonathan',
+    name: 'Hendrik Prasetyo (Ortu Jonathan)',
+    email: 'hendrik.prasetyo@gmail.com',
+    phone: '081227182930',
+    studentId: 'std-01',
+    studentNis: '2024001',
+    studentName: 'Jonathan Daniel Prasetyo',
+    studentGrade: 'Kelas 4A',
+    positionTitle: 'Orang Tua Murid',
+    password: 'Ortu1234',
   },
 ];
 
@@ -132,7 +137,8 @@ export type MainMenuType =
   | 'administrasi'
   | 'inventarisasi'
   | 'approval'
-  | 'portal-ortu';
+  | 'portal-ortu'
+  | 'spmb';
 
 export type AppNavTab =
   | 'dashboard'
@@ -148,13 +154,14 @@ export type AppNavTab =
   | 'administrasi-guru'
   | 'inventarisasi'
   | 'approval'
-  | 'portal-ortu';
+  | 'portal-ortu'
+  | 'spmb';
 
 export interface RegisterUserData {
   name: string;
   username: string;
   password: string;
-  role: import('../types').UserRole;
+  role: UserRole;
   email: string;
   phone?: string;
   nip?: string;
@@ -168,6 +175,12 @@ export interface RegisterUserData {
 interface AppContextType {
   staffInfo: SchoolStaffInfo;
   updateStaffInfo: (info: Partial<SchoolStaffInfo>) => void;
+  // Super Admin check
+  isSuperAdmin: boolean;
+  // Global Toast Notifications
+  toasts: ToastNotification[];
+  showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
+  removeToast: (id: string) => void;
   // Authentication & Role Isolation
   currentUser: AuthUser | null;
   registeredUsers: AuthUser[];
@@ -276,6 +289,11 @@ interface AppContextType {
   updateAsset: (id: string, data: Partial<InventoryAsset>) => void;
   deleteAsset: (id: string) => void;
   deleteAssetsBulk: (ids: string[]) => number;
+  // SPMB (Penerimaan Murid Baru)
+  spmbRegistrations: SPMBRegistration[];
+  addSPMBRegistration: (data: Omit<SPMBRegistration, 'id' | 'registrationNumber' | 'nis' | 'registrationDate' | 'emailNotificationSent' | 'emailSentAt'>) => SPMBRegistration;
+  updateSPMBStatus: (id: string, status: SPMBStatus, sendEmailNotify?: boolean) => void;
+  deleteSPMBRegistration: (id: string) => void;
   // Modals & Navigation
   activeReceipt: PaymentTransaction | null;
   setActiveReceipt: (tx: PaymentTransaction | null) => void;
@@ -310,6 +328,7 @@ const STORAGE_KEYS = {
   AUTH_USER: 'sd_bopkri_auth_user_v1',
   ASSETS: 'sd_bopkri_assets_v1',
   REGISTERED_USERS: 'sd_bopkri_registered_users_v1',
+  SPMB: 'sd_bopkri_spmb_v1',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -423,6 +442,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [spmbRegistrations, setSpmbRegistrations] = useState<SPMBRegistration[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SPMB);
+    if (!saved) return INITIAL_SPMB_REGISTRATIONS;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return INITIAL_SPMB_REGISTRATIONS;
+    }
+  });
+
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newToast: ToastNotification = { id, message, type, timestamp: Date.now() };
+    setToasts((prev) => [...prev.slice(-4), newToast]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   const [registeredUsers, setRegisteredUsers] = useState<AuthUser[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
     if (!saved) return INITIAL_REGISTERED_USERS;
@@ -449,6 +493,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return null;
     }
   });
+
+  const isSuperAdmin = Boolean(
+    currentUser &&
+    (currentUser.role === 'ADMIN' ||
+     currentUser.username.toLowerCase() === 'benisius' ||
+     currentUser.username.toLowerCase() === 'benisiusbasuki24' ||
+     currentUser.name.toLowerCase().includes('benisius'))
+  );
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
@@ -497,6 +549,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveTabRaw('portal-ortu');
     } else if (menu === 'approval') {
       setActiveTabRaw('approval');
+    } else if (menu === 'spmb') {
+      setActiveTabRaw('spmb');
     } else if (menu === 'keuangan') {
       if (currentUser?.role === 'GURU' || currentUser?.role === 'STAFF' || currentUser?.role === 'TEACHER') {
         setActiveTabRaw('dashboard');
@@ -536,6 +590,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMainMenuState('portal-ortu');
     } else if (tab === 'approval') {
       setMainMenuState('approval');
+    } else if (tab === 'spmb') {
+      setMainMenuState('spmb');
     } else if (['dashboard', 'kasir', 'tagihan', 'siswa', 'laporan', 'whatsapp', 'jenis-tagihan'].includes(tab)) {
       setMainMenuState('keuangan');
     } else if (['penggajian', 'my-slips', 'master-guru'].includes(tab)) {
@@ -619,6 +675,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanUname = data.username.trim().toLowerCase();
     if (!cleanUname || !data.password || !data.name.trim()) {
       return { success: false, message: 'Nama lengkap, username, dan kata sandi wajib diisi.' };
+    }
+
+    if (cleanUname.length < 8) {
+      return { success: false, message: 'Username harus terdiri dari minimal 8 karakter.' };
     }
 
     const exists = registeredUsers.some((u) => u.username.toLowerCase() === cleanUname);
@@ -984,12 +1044,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTeachingDoc = (id: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus berkas administrasi.', 'warning');
+      return;
+    }
     setTeachingDocs((prev) => prev.filter((d) => d.id !== id));
+    showToast('Berkas administrasi ajar berhasil dihapus.', 'info');
   };
 
   const deleteTeachingDocsBulk = (ids: string[]): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus berkas administrasi.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setTeachingDocs((prev) => prev.filter((d) => !idSet.has(d.id)));
+    showToast(`${ids.length} berkas administrasi ajar berhasil dihapus.`, 'info');
     return ids.length;
   };
 
@@ -1042,18 +1112,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteStudent = (id: string, deleteRelatedBills: boolean = true) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data siswa.', 'warning');
+      return;
+    }
     setStudents((prev) => prev.filter((s) => s.id !== id));
     if (deleteRelatedBills) {
       setBills((prev) => prev.filter((b) => b.studentId !== id));
     }
+    showToast('Data siswa berhasil dihapus.', 'info');
   };
 
   const deleteStudentsBulk = (ids: string[], deleteRelatedBills: boolean = true): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data siswa.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setStudents((prev) => prev.filter((s) => !idSet.has(s.id)));
     if (deleteRelatedBills) {
       setBills((prev) => prev.filter((b) => !idSet.has(b.studentId)));
     }
+    showToast(`${ids.length} data siswa berhasil dihapus.`, 'info');
     return ids.length;
   };
 
@@ -1100,12 +1180,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteBillType = (id: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus pos tagihan.', 'warning');
+      return;
+    }
     setBillTypes((prev) => prev.filter((bt) => bt.id !== id));
+    showToast('Pos tagihan berhasil dihapus.', 'info');
   };
 
   const deleteBillTypesBulk = (ids: string[]): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus pos tagihan.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setBillTypes((prev) => prev.filter((bt) => !idSet.has(bt.id)));
+    showToast(`${ids.length} pos tagihan berhasil dihapus.`, 'info');
     return ids.length;
   };
 
@@ -1143,12 +1233,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteBill = (billId: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus tagihan.', 'warning');
+      return;
+    }
     setBills((prev) => prev.filter((b) => b.id !== billId));
+    showToast('Tagihan berhasil dihapus.', 'info');
   };
 
   const deleteBillsBulk = (billIds: string[]): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus tagihan.', 'warning');
+      return 0;
+    }
     const idSet = new Set(billIds);
     setBills((prev) => prev.filter((b) => !idSet.has(b.id)));
+    showToast(`${billIds.length} tagihan berhasil dihapus.`, 'info');
     return billIds.length;
   };
 
@@ -1351,6 +1451,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTransaction = (id: string, revertBillPaidAmount: boolean = true) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus transaksi keuangan.', 'warning');
+      return;
+    }
     const tx = transactions.find((t) => t.id === id);
     if (!tx) return;
 
@@ -1380,9 +1484,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+    showToast('Transaksi pembayaran berhasil dihapus.', 'info');
   };
 
   const deleteTransactionsBulk = (ids: string[], revertBillPaidAmount: boolean = true): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus transaksi keuangan.', 'warning');
+      return 0;
+    }
     ids.forEach((id) => deleteTransaction(id, revertBillPaidAmount));
     return ids.length;
   };
@@ -1423,18 +1532,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteTeacher = (id: string, deleteRelatedPayrolls: boolean = false) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data guru/staf.', 'warning');
+      return;
+    }
     setTeachers((prev) => prev.filter((t) => t.id !== id));
     if (deleteRelatedPayrolls) {
       setPayrolls((prev) => prev.filter((p) => p.teacherId !== id));
     }
+    showToast('Data guru/staf berhasil dihapus.', 'info');
   };
 
   const deleteTeachersBulk = (ids: string[], deleteRelatedPayrolls: boolean = false): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data guru/staf.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setTeachers((prev) => prev.filter((t) => !idSet.has(t.id)));
     if (deleteRelatedPayrolls) {
       setPayrolls((prev) => prev.filter((p) => !idSet.has(p.teacherId)));
     }
+    showToast(`${ids.length} data guru/staf berhasil dihapus.`, 'info');
     return ids.length;
   };
 
@@ -1580,12 +1699,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deletePayrollRecord = (id: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus slip penggajian.', 'warning');
+      return;
+    }
     setPayrolls((prev) => prev.filter((p) => p.id !== id));
+    showToast('Slip penggajian berhasil dihapus.', 'info');
   };
 
   const deletePayrollsBulk = (ids: string[]): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus slip penggajian.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setPayrolls((prev) => prev.filter((p) => !idSet.has(p.id)));
+    showToast(`${ids.length} data slip penggajian berhasil dihapus.`, 'info');
     return ids.length;
   };
 
@@ -1643,16 +1772,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAsset = (id: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus aset inventaris.', 'warning');
+      return;
+    }
     setAssets((prev) => prev.filter((item) => item.id !== id));
+    showToast('Aset inventaris berhasil dihapus.', 'info');
   };
 
   const deleteAssetsBulk = (ids: string[]): number => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus aset inventaris.', 'warning');
+      return 0;
+    }
     const idSet = new Set(ids);
     setAssets((prev) => prev.filter((item) => !idSet.has(item.id)));
+    showToast(`${ids.length} aset inventaris berhasil dihapus.`, 'info');
     return ids.length;
   };
 
+  // SPMB Management
+  const addSPMBRegistration = (
+    data: Omit<SPMBRegistration, 'id' | 'registrationNumber' | 'nis' | 'registrationDate' | 'emailNotificationSent' | 'emailSentAt'>
+  ): SPMBRegistration => {
+    const currentYear = new Date().getFullYear();
+    const count = spmbRegistrations.length + 1;
+    const nis = `${currentYear}${String(count).padStart(3, '0')}`;
+    const registrationNumber = `SPMB-${currentYear}/${String(count).padStart(3, '0')}`;
+    const nowIso = new Date().toISOString();
+
+    const newReg: SPMBRegistration = {
+      ...data,
+      id: `spmb-${Date.now()}`,
+      registrationNumber,
+      nis,
+      registrationDate: nowIso,
+      emailNotificationSent: true,
+      emailSentAt: nowIso,
+    };
+
+    setSpmbRegistrations((prev) => [newReg, ...prev]);
+    showToast(`Pendaftaran murid baru berhasil disimpan! Notifikasi email otomatis telah dikirim ke ${newReg.parentEmail}`, 'success');
+    return newReg;
+  };
+
+  const updateSPMBStatus = (id: string, status: SPMBStatus, sendEmailNotify: boolean = true) => {
+    const nowIso = new Date().toISOString();
+    setSpmbRegistrations((prev) =>
+      prev.map((r) => {
+        if (r.id === id) {
+          return {
+            ...r,
+            status,
+            emailNotificationSent: sendEmailNotify ? true : r.emailNotificationSent,
+            emailSentAt: sendEmailNotify ? nowIso : r.emailSentAt,
+          };
+        }
+        return r;
+      })
+    );
+    if (sendEmailNotify) {
+      showToast(`Status pendaftaran diperbarui menjadi "${status}" & notifikasi konfirmasi email terkirim.`, 'success');
+    } else {
+      showToast(`Status pendaftaran diperbarui menjadi "${status}".`, 'info');
+    }
+  };
+
+  const deleteSPMBRegistration = (id: string) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data pendaftaran.', 'warning');
+      return;
+    }
+    setSpmbRegistrations((prev) => prev.filter((r) => r.id !== id));
+    showToast('Data calon murid berhasil dihapus.', 'info');
+  };
+
   const resetToDefaultData = () => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang berwenang mereset data contoh.', 'warning');
+      return;
+    }
     if (window.confirm('Kembalikan seluruh data ke contoh awal SD BOPKRI Gondolayu?')) {
       localStorage.removeItem(STORAGE_KEYS.STAFF);
       localStorage.removeItem(STORAGE_KEYS.STUDENTS);
@@ -1664,6 +1863,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
       localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
       localStorage.removeItem(STORAGE_KEYS.ASSETS);
+      localStorage.removeItem(STORAGE_KEYS.SPMB);
       setStaffInfo(INITIAL_STAFF_INFO);
       setStudents(INITIAL_STUDENTS);
       setBillTypes(INITIAL_BILL_TYPES);
@@ -1673,15 +1873,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPayrolls(INITIAL_PAYROLLS);
       setTeachingDocs(INITIAL_TEACHING_DOCS);
       setAssets(INITIAL_INVENTORY_ASSETS);
+      setSpmbRegistrations(INITIAL_SPMB_REGISTRATIONS);
       setCurrentUser(null);
       setMainMenuState('keuangan');
       setActiveTabRaw('dashboard');
+      showToast('Data contoh SD BOPKRI Gondolayu berhasil direset.', 'info');
     }
   };
 
   const purgeModuleData = (
     module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all'
   ) => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Admin (Benisius) yang memiliki hak akses mengosongkan seluruh data.', 'warning');
+      return;
+    }
     if (module === 'students' || module === 'all') {
       setStudents([]);
       localStorage.removeItem(STORAGE_KEYS.STUDENTS);
@@ -1714,6 +1920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAssets([]);
       localStorage.removeItem(STORAGE_KEYS.ASSETS);
     }
+    showToast('Data modul berhasil dikosongkan.', 'info');
   };
 
   return (
@@ -1721,6 +1928,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         staffInfo,
         updateStaffInfo,
+        isSuperAdmin,
+        toasts,
+        showToast,
+        removeToast,
         currentUser,
         registeredUsers,
         registerUser,
@@ -1782,6 +1993,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAsset,
         deleteAsset,
         deleteAssetsBulk,
+        spmbRegistrations,
+        addSPMBRegistration,
+        updateSPMBStatus,
+        deleteSPMBRegistration,
         activeReceipt,
         setActiveReceipt,
         activePayingBill,

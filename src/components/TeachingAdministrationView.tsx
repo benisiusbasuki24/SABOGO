@@ -83,6 +83,7 @@ export const TeachingAdministrationView: React.FC = () => {
     updateTeachingDocStatus,
     staffInfo,
     teachers,
+    showToast,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -196,6 +197,7 @@ export const TeachingAdministrationView: React.FC = () => {
 
     setIsUploadModalOpen(false);
     setUploadSuccessAlert(true);
+    showToast('Data berhasil diunggah', 'success');
     setTimeout(() => setUploadSuccessAlert(false), 4000);
 
     // Reset form

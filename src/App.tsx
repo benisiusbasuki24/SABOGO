@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdminDataPurgeModal } from './components/AdminDataPurgeModal';
+import { ApprovalCenterView } from './components/ApprovalCenterView';
 import { BillTypesView } from './components/BillTypesView';
 import { BillsManagementView } from './components/BillsManagementView';
 import { CashierPaymentModal } from './components/CashierPaymentModal';
@@ -11,8 +12,10 @@ import { InventoryView } from './components/InventoryView';
 import { LoginModal } from './components/LoginModal';
 import { LoginPage } from './components/LoginPage';
 import { MasterStaffView } from './components/MasterStaffView';
+import { ParentPortalView } from './components/ParentPortalView';
 import { ReceiptModal } from './components/ReceiptModal';
 import { SalarySlipModal } from './components/SalarySlipModal';
+import { SPMBView } from './components/SPMBView';
 import { StudentsView } from './components/StudentsView';
 import { TeacherMySlipsView } from './components/TeacherMySlipsView';
 import { TeacherPayrollView } from './components/TeacherPayrollView';
@@ -20,7 +23,17 @@ import { TeachingAdministrationView } from './components/TeachingAdministrationV
 import { UserProfileModal } from './components/UserProfileModal';
 import { WhatsAppReminderView } from './components/WhatsAppReminderView';
 import { AppProvider, useApp } from './context/AppContext';
-import { Download, Lock, RotateCcw, ShieldAlert, Smartphone, Sparkles, UserCheck } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  RotateCcw,
+  ShieldAlert,
+  Sparkles,
+  UserCheck,
+  X,
+} from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const {
@@ -30,15 +43,20 @@ const MainLayout: React.FC = () => {
     currentUser,
     staffInfo,
     resetToDefaultData,
-    setIsLoginModalOpen,
+    isSuperAdmin,
+    toasts,
+    removeToast,
   } = useApp();
 
-  // If user is not logged in, only show the LoginPage (form login dan nama aplikasi saja)
+  // If user is not logged in, render LoginPage
   if (!currentUser) {
     return <LoginPage />;
   }
 
-  const isTeacher = currentUser?.role === 'TEACHER';
+  const isOrangTua = currentUser.role === 'ORANG_TUA';
+  const isKepalaSekolah = currentUser.role === 'KEPALA_SEKOLAH';
+  const isBendahara = currentUser.role === 'BENDAHARA';
+  const isGuruOrStaff = currentUser.role === 'GURU' || currentUser.role === 'STAFF' || currentUser.role === 'TEACHER';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -46,44 +64,26 @@ const MainLayout: React.FC = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         
-        {/* If Teacher tries to access Menu Keuangan Sekolah */}
-        {isTeacher && mainMenu === 'keuangan' ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-10 text-center max-w-xl mx-auto my-10 shadow-xs animate-in fade-in duration-200">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">
-              Akses Terbatas: Menu Keuangan Sekolah
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 mb-6 leading-relaxed">
-              Menu Keuangan Sekolah (Loket Kasir, SPP Siswa, Data Siswa, Tagihan, dan Laporan Keuangan) dikhususkan untuk <strong>Bendahara & Administrator</strong> SD BOPKRI Gondolayu.
-              <br className="hidden sm:inline" /> Anda sedang masuk sebagai Akun Guru (<strong>{currentUser?.name}</strong>).
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => setMainMenu('penggajian')}
-                className="w-full sm:w-auto px-5 py-2.5 bg-indigo-900 hover:bg-indigo-950 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors"
-              >
-                Buka Slip Gaji Saya
-              </button>
-              <button
-                onClick={() => setMainMenu('administrasi')}
-                className="w-full sm:w-auto px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors"
-              >
-                Buka Administrasi Mengajar
-              </button>
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors inline-flex items-center justify-center gap-1.5"
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Masuk sebagai Admin</span>
-              </button>
-            </div>
-          </div>
+        {/* ==============================================================
+           1. ORANG TUA: RESTRICTED SOLELY TO STUDENT INVOICE & HISTORY
+           ============================================================== */}
+        {isOrangTua ? (
+          <ParentPortalView />
+        ) : mainMenu === 'portal-ortu' ? (
+          <ParentPortalView />
+        ) : mainMenu === 'approval' ? (
+          /* ==============================================================
+             2. APPROVAL CENTER VIEW (KEPALA SEKOLAH / BENDAHARA / ADMIN)
+             ============================================================== */
+          <ApprovalCenterView />
+        ) : mainMenu === 'spmb' ? (
+          /* ==============================================================
+             3. SPMB (PENERIMAAN MURID BARU DENGAN AUTO NIS & EMAIL NOTIFIKASI)
+             ============================================================== */
+          <SPMBView />
         ) : mainMenu === 'keuangan' ? (
           /* ==============================================================
-             1. MENU KEUANGAN SEKOLAH (ADMIN / BENDAHARA / KASIR)
+             4. MENU KEUANGAN SEKOLAH (ADMIN / BENDAHARA / VIEW FOR KEPSEK & GURU)
              ============================================================== */
           <>
             {activeTab === 'dashboard' && <DashboardView />}
@@ -96,11 +96,13 @@ const MainLayout: React.FC = () => {
           </>
         ) : mainMenu === 'penggajian' ? (
           /* ==============================================================
-             2. MENU PENGGAJIAN GURU & STAF
+             5. MENU PENGGAJIAN GURU & STAF
              ============================================================== */
           <>
-            {isTeacher ? (
+            {isGuruOrStaff ? (
               <TeacherMySlipsView />
+            ) : isKepalaSekolah ? (
+              <TeacherPayrollView />
             ) : (
               <>
                 {activeTab === 'master-guru' && <MasterStaffView />}
@@ -111,12 +113,12 @@ const MainLayout: React.FC = () => {
           </>
         ) : mainMenu === 'administrasi' ? (
           /* ==============================================================
-             3. MENU ADMINISTRASI MENGAJAR (MODUL AJAR, ATP, PROTA/PROMES)
+             6. MENU ADMINISTRASI MENGAJAR
              ============================================================== */
           <TeachingAdministrationView />
         ) : (
           /* ==============================================================
-             4. MENU INVENTARISASI (ASET & SARANA PRASARANA SEKOLAH)
+             7. MENU INVENTARISASI SEKOLAH
              ============================================================== */
           <InventoryView />
         )}
@@ -131,7 +133,55 @@ const MainLayout: React.FC = () => {
       <SalarySlipModal />
       <AdminDataPurgeModal />
 
-      {/* Footer */}
+      {/* GLOBAL FLOATING TOAST NOTIFICATION STACK */}
+      <div
+        aria-live="polite"
+        className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
+      >
+        {toasts.map((toast) => {
+          const isSuccess = toast.type === 'success';
+          const isWarning = toast.type === 'warning';
+          const isError = toast.type === 'error';
+
+          return (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex items-start justify-between gap-3 p-3.5 rounded-2xl shadow-xl border animate-in slide-in-from-top-3 fade-in duration-200 ${
+                isSuccess
+                  ? 'bg-slate-900 text-white border-slate-700/80 shadow-blue-950/20'
+                  : isWarning
+                  ? 'bg-amber-900 text-amber-50 border-amber-700 shadow-amber-950/20'
+                  : isError
+                  ? 'bg-rose-950 text-rose-50 border-rose-800 shadow-rose-950/20'
+                  : 'bg-blue-950 text-blue-50 border-blue-800 shadow-blue-950/20'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 shrink-0">
+                  {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                  {isWarning && <AlertCircle className="w-4 h-4 text-amber-300" />}
+                  {isError && <AlertTriangle className="w-4 h-4 text-rose-300" />}
+                  {!isSuccess && !isWarning && !isError && (
+                    <Info className="w-4 h-4 text-blue-300" />
+                  )}
+                </div>
+                <div className="text-xs font-semibold leading-relaxed">
+                  {toast.message}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="text-white/60 hover:text-white p-0.5 rounded transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Clean & Professional Dynamic Footer */}
       <footer className="no-print mt-auto border-t border-slate-200 bg-white py-6 px-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           
@@ -156,33 +206,37 @@ const MainLayout: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-[11px] text-slate-400">
-            <a
-              href="./SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
-              download="SIBOGO_BOPKRI_Gondolayu_v1.0.apk"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-md transition-colors"
-              title="Unduh file aplikasi Android (APK) SIBOGO untuk dipasang di smartphone Android"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Unduh APK Android</span>
-              <Download className="w-3 h-3 text-emerald-600" />
-            </a>
-            <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-600" />
-              Penanggung Jawab & Pengembang: <strong>{staffInfo.appDeveloper || 'Benisius Rahmat Basuki, S.Pd'}</strong>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-500">
+            {/* Dynamic Copyright notice */}
+            <p className="text-slate-600 font-medium">
+              © 2024 SIBOGO - SD BOPKRI Gondolayu. All rights reserved.
+            </p>
+            <span aria-hidden="true">·</span>
+            {/* Superadmin & Apps Developer */}
+            <span className="text-blue-950 font-semibold flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-500" />
+              superadmin & apps developer: <strong>Benisius R.B</strong>
             </span>
-            <button
-              onClick={resetToDefaultData}
-              className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors ml-1"
-              title="Reset data ke contoh awal SD BOPKRI Gondolayu"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset Data Contoh
-            </button>
+
+            {/* Reset Data Contoh button: ONLY SHOWN IF LOGGED IN USER IS BENISIUS (SUPER ADMIN) */}
+            {isSuperAdmin && (
+              <>
+                <span aria-hidden="true">·</span>
+                <button
+                  onClick={resetToDefaultData}
+                  className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-800 transition-colors"
+                  title="Reset seluruh data ke contoh awal SD BOPKRI Gondolayu (Khusus Super Admin)"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Data Contoh</span>
+                </button>
+              </>
+            )}
           </div>
 
         </div>
       </footer>
+
     </div>
   );
 };

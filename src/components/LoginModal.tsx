@@ -1,31 +1,44 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
+import { UserRole } from '../types';
 import {
+  AlertTriangle,
+  ArrowRight,
   CheckCircle2,
-  Code2,
   Crown,
-  GraduationCap,
   KeyRound,
   Lock,
   LogIn,
-  ShieldCheck,
-  Sparkles,
+  User,
   UserCheck,
+  UserPlus,
   X,
 } from 'lucide-react';
 
 export const LoginModal: React.FC = () => {
-  const { isLoginModalOpen, setIsLoginModalOpen, login, teachers, staffInfo } = useApp();
+  const { isLoginModalOpen, setIsLoginModalOpen, login, registerUser, staffInfo } = useApp();
+
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+
+  // Login state
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
 
+  // Register state
+  const [regName, setRegName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRole, setRegRole] = useState<UserRole>('GURU');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('08');
+
   if (!isLoginModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -49,11 +62,11 @@ export const LoginModal: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = (uname: string, pwd = '123') => {
-    setIdentifier(uname);
-    setPassword(pwd);
+  const handleQuickLoginBenisius = () => {
+    setIdentifier('benisiusbasuki24');
+    setPassword('123');
     setErrorMessage(null);
-    const result = login(uname, pwd);
+    const result = login('benisiusbasuki24', '123');
     if (result.success) {
       setSuccessMessage(result.message);
       setTimeout(() => {
@@ -65,19 +78,58 @@ export const LoginModal: React.FC = () => {
     }
   };
 
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const cleanUsername = regUsername.trim().toLowerCase();
+
+    // Username validation: minimum 8 characters
+    if (cleanUsername.length < 8) {
+      setErrorMessage('Username minimal harus 8 karakter!');
+      return;
+    }
+
+    if (!regName.trim() || !regPassword.trim() || !regEmail.trim()) {
+      setErrorMessage('Nama lengkap, kata sandi, dan email wajib diisi.');
+      return;
+    }
+
+    const res = registerUser({
+      name: regName.trim(),
+      username: cleanUsername,
+      password: regPassword.trim(),
+      role: regRole,
+      email: regEmail.trim(),
+      phone: regPhone.trim(),
+    });
+
+    if (res.success) {
+      setSuccessMessage(`${res.message} Silakan masuk.`);
+      setIdentifier(cleanUsername);
+      setPassword(regPassword.trim());
+      setTimeout(() => {
+        setActiveTab('LOGIN');
+      }, 1400);
+    } else {
+      setErrorMessage(res.message);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 px-6 py-5 text-white flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 rounded-xl border border-white/20">
-              <Lock className="w-6 h-6 text-amber-300" />
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 px-6 py-4 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-white/10 rounded-xl border border-white/20">
+              <Lock className="w-5 h-5 text-amber-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Portal SIBOGO Guru & Admin</h2>
-              <p className="text-xs text-blue-200">Sistem Informasi SD BOPKRI Gondolayu</p>
+              <h2 className="text-base font-bold">Portal Masuk & Pendaftaran SIBOGO</h2>
+              <p className="text-[11px] text-blue-200">SD BOPKRI Gondolayu Yogyakarta</p>
             </div>
           </div>
           <button
@@ -88,19 +140,47 @@ export const LoginModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Access Rule Banner */}
-        <div className="bg-blue-50 border-b border-blue-200 px-6 py-2.5 text-xs text-blue-900 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0" />
-          <span>
-            <strong>Hak Akses:</strong> Admin mengelola seluruh 4 menu utama. Akun Guru terisolasi pada slip gaji & administrasi ajar.
-          </span>
+        {/* Tab Switcher */}
+        <div className="grid grid-cols-2 bg-slate-100 border-b border-slate-200 p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('LOGIN');
+              setErrorMessage(null);
+            }}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'LOGIN'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Masuk Akun</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('REGISTER');
+              setErrorMessage(null);
+            }}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'REGISTER'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Daftar Akun Baru</span>
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto space-y-4">
+          
           {errorMessage && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
-              <span className="font-semibold">Perhatian:</span> {errorMessage}
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
 
@@ -111,58 +191,202 @@ export const LoginModal: React.FC = () => {
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Username / NIP / Email Pengguna
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Contoh: benisiusbasuki24 atau admin"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
-                  required
-                />
-                <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          {activeTab === 'LOGIN' ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Username / NIP / Email Pengguna
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Contoh: benisiusbasuki24 atau mariakristianti"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"
+                    required
+                  />
+                  <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Kata Sandi / PIN <span className="font-normal text-slate-400">(Bawaan contoh: 123)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="Masukkan kata sandi atau 123"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
-                />
-                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Kata Sandi / PIN
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    Bawaan contoh: <strong>123</strong>
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    placeholder="Masukkan kata sandi atau 123"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"
+                  />
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                </div>
+                <div className="text-right mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPasswordOpen(true)}
+                    className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                  >
+                    Lupa Username atau Kata Sandi?
+                  </button>
+                </div>
               </div>
-              <div className="text-right mt-1">
+
+              <button
+                type="submit"
+                className="w-full py-2.5 px-4 bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Masuk ke Akun</span>
+              </button>
+
+              {/* SINGLE SUPER ADMIN SHORTCUT */}
+              <div className="pt-3 border-t border-slate-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 text-center">
+                  Akses Cepat Pengembang:
+                </span>
                 <button
                   type="button"
-                  onClick={() => setIsForgotPasswordOpen(true)}
-                  className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                  onClick={handleQuickLoginBenisius}
+                  className="w-full p-2.5 text-left border-2 border-amber-400/90 bg-gradient-to-r from-amber-50 to-blue-50 hover:from-amber-100 hover:to-blue-100 rounded-xl transition-all shadow-2xs group flex items-center justify-between"
                 >
-                  Lupa Username atau Kata Sandi?
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-950 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      <Crown className="w-3.5 h-3.5 text-amber-300" />
+                    </div>
+                    <div className="leading-tight">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-blue-950">
+                          Benisius Rahmat Basuki, S.Pd
+                        </span>
+                        <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-400 text-amber-950">
+                          Super Admin
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        user: benisiusbasuki24
+                      </span>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-blue-800 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
-            </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nama Lengkap <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nama Lengkap beserta gelar jika ada"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                />
+              </div>
 
-            <button
-              type="submit"
-              className="w-full py-2.5 px-4 bg-blue-800 hover:bg-blue-900 text-white font-semibold text-xs sm:text-sm rounded-lg shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Masuk ke Akun</span>
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Jenis Pengguna (Role) <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value as UserRole)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-bold"
+                >
+                  <option value="KEPALA_SEKOLAH">Kepala Sekolah (Approval, Monitoring)</option>
+                  <option value="BENDAHARA">Bendahara (Keuangan Penuh & Gaji)</option>
+                  <option value="TATA_USAHA">Tata Usaha (Kasir, Siswa, SPMB)</option>
+                  <option value="GURU">Guru (Slip Gaji & Modul Ajar)</option>
+                  <option value="STAFF">Staff / Karyawan (Slip Gaji & Sarpras)</option>
+                  <option value="ORANG_TUA">Orang Tua Murid (Cek Tagihan)</option>
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    Username Baru <span className="text-red-500">*</span>
+                  </label>
+                  <span className={`text-[10px] font-bold ${regUsername.trim().length >= 8 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {regUsername.trim().length}/8 (Min. 8)
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Minimal 8 karakter"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg font-mono focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Kata Sandi Baru <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Masukkan kata sandi"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="email@gmail.com"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    WhatsApp <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="08123456789"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={regUsername.trim().length < 8}
+                className={`w-full py-2.5 px-4 text-white font-bold text-xs rounded-xl shadow-xs transition-all ${
+                  regUsername.trim().length < 8 ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-900 hover:bg-blue-950 cursor-pointer'
+                }`}
+              >
+                Daftar Akun SIBOGO
+              </button>
+            </form>
+          )}
 
           <ForgotPasswordModal
             isOpen={isForgotPasswordOpen}
@@ -173,132 +397,6 @@ export const LoginModal: React.FC = () => {
             }}
           />
 
-          {/* QUICK LOGIN PRESETS */}
-          <div className="pt-3 border-t border-slate-200 space-y-2.5">
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Pilihan Masuk Cepat (Akun Pengembang & Staf):
-            </p>
-
-            {/* PRIORITY CARD: BENISIUS RAHMAT BASUKI (Penanggung Jawab & Pengembang Aplikasi) */}
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('benisiusbasuki24', '123')}
-              className="w-full p-3.5 text-left border-2 border-amber-400/80 bg-gradient-to-r from-amber-50 via-blue-50/40 to-indigo-50 hover:from-amber-100/90 hover:to-indigo-100 rounded-xl transition-all shadow-xs group relative overflow-hidden"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-900 text-amber-300 flex items-center justify-center font-black text-sm shrink-0 shadow-xs border border-amber-300/40 group-hover:scale-105 transition-transform">
-                    <Crown className="w-5 h-5 text-amber-300" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs sm:text-sm font-extrabold text-blue-950 group-hover:text-blue-800">
-                        Benisius Rahmat Basuki, S.Pd
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-amber-950 flex items-center gap-1 shadow-2xs">
-                        <Sparkles className="w-3 h-3 text-amber-900" />
-                        Penanggung Jawab & Pengembang
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
-                      Hak Akses Penuh: Keuangan, Penggajian, Administrasi Mengajar & Inventarisasi
-                    </p>
-                    <p className="text-[10px] font-mono text-blue-800 mt-0.5">
-                      user: <strong>benisiusbasuki24</strong> · {`benisiusbasuki24@guru.sd.belajar.id`}
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-[11px] font-bold text-blue-800 bg-white border border-blue-200 px-2 py-1 rounded-lg shrink-0 group-hover:bg-blue-800 group-hover:text-white transition-colors">
-                  Masuk Admin
-                </span>
-              </div>
-            </button>
-
-            {/* Other Presets Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              
-              {/* Admin / Bendahara (Eni Utaminingsih) */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin', '123')}
-                className="p-2.5 text-left border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-bold">
-                    EU
-                  </div>
-                  <span className="text-xs font-bold text-slate-800 group-hover:underline">
-                    Ibu Eni Utaminingsih
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-600">Bendahara (Keuangan & SPP)</p>
-                <p className="text-[10px] font-mono text-slate-500">user: admin</p>
-              </button>
-
-              {/* Kepala Sekolah (FX. Suhari Irawan) */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('suhari.irawan', '123')}
-                className="p-2.5 text-left border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-blue-800 text-white flex items-center justify-center text-xs font-bold">
-                    SI
-                  </div>
-                  <span className="text-xs font-bold text-slate-800 group-hover:underline">
-                    Bp. FX. Suhari Irawan
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-600">Kepala Sekolah (Akses Pengawasan)</p>
-                <p className="text-[10px] font-mono text-slate-500">user: suhari.irawan</p>
-              </button>
-
-              {/* Maria Kristianti (Guru) */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('maria.kristianti', '123')}
-                className="p-2.5 text-left border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-indigo-700 text-white flex items-center justify-center text-xs font-bold">
-                    MK
-                  </div>
-                  <span className="text-xs font-bold text-slate-800 group-hover:underline">
-                    Ibu Maria Kristianti
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-600">Guru Kelas 3A (Slip & Dokumen)</p>
-                <p className="text-[10px] font-mono text-slate-500">user: maria.kristianti</p>
-              </button>
-
-              {/* Yohanes Paulus (Guru Agama) */}
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('yohanes.setiawan', '123')}
-                className="p-2.5 text-left border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xs font-bold">
-                    YP
-                  </div>
-                  <span className="text-xs font-bold text-slate-800 group-hover:underline">
-                    Bp. Yohanes Paulus
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-600">Guru Agama Kristen (Slip & Modul)</p>
-                <p className="text-[10px] font-mono text-slate-500">user: yohanes.setiawan</p>
-              </button>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Footer info */}
-        <div className="bg-slate-50 border-t border-slate-200 px-6 py-2.5 text-center">
-          <p className="text-[11px] text-slate-500">
-            Aplikasi SIBOGO dikembangkan & dikelola oleh <strong>Benisius Rahmat Basuki, S.Pd</strong> untuk SD BOPKRI Gondolayu Yogyakarta.
-          </p>
         </div>
 
       </div>

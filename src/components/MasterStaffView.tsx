@@ -48,6 +48,8 @@ export const MasterStaffView: React.FC = () => {
     importTeachersFromExcel,
     staffInfo,
     currentUser,
+    isSuperAdmin,
+    showToast,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +169,7 @@ export const MasterStaffView: React.FC = () => {
     if (!previewRows || previewRows.length === 0) return;
     const count = importTeachersFromExcel(previewRows);
     setUploadSuccess(`Berhasil mengimpor & memperbarui ${count} data guru/staf.`);
+    showToast('Data berhasil diunggah', 'success');
     setPreviewRows(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setTimeout(() => {
