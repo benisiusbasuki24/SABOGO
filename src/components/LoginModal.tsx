@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  Crown,
   KeyRound,
   Lock,
   LogIn,
@@ -56,22 +55,6 @@ export const LoginModal: React.FC = () => {
         setSuccessMessage(null);
         setIdentifier('');
         setPassword('');
-      }, 700);
-    } else {
-      setErrorMessage(result.message);
-    }
-  };
-
-  const handleQuickLoginBenisius = () => {
-    setIdentifier('benisiusbasuki24');
-    setPassword('123');
-    setErrorMessage(null);
-    const result = login('benisiusbasuki24', '123');
-    if (result.success) {
-      setSuccessMessage(result.message);
-      setTimeout(() => {
-        setIsLoginModalOpen(false);
-        setSuccessMessage(null);
       }, 700);
     } else {
       setErrorMessage(result.message);
@@ -247,38 +230,6 @@ export const LoginModal: React.FC = () => {
                 <LogIn className="w-4 h-4" />
                 <span>Masuk ke Akun</span>
               </button>
-
-              {/* SINGLE SUPER ADMIN SHORTCUT */}
-              <div className="pt-3 border-t border-slate-100">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5 text-center">
-                  Akses Cepat Pengembang:
-                </span>
-                <button
-                  type="button"
-                  onClick={handleQuickLoginBenisius}
-                  className="w-full p-2.5 text-left border-2 border-amber-400/90 bg-gradient-to-r from-amber-50 to-blue-50 hover:from-amber-100 hover:to-blue-100 rounded-xl transition-all shadow-2xs group flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-950 text-amber-300 flex items-center justify-center font-bold text-xs shrink-0">
-                      <Crown className="w-3.5 h-3.5 text-amber-300" />
-                    </div>
-                    <div className="leading-tight">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-black text-blue-950">
-                          Benisius Rahmat Basuki, S.Pd
-                        </span>
-                        <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-400 text-amber-950">
-                          Super Admin
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        user: benisiusbasuki24
-                      </span>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-blue-800 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
             </form>
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-3">

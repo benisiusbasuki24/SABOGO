@@ -287,39 +287,6 @@ export const LoginPage: React.FC = () => {
                   <span>{isLoading ? 'Memproses Masuk...' : 'Masuk ke Aplikasi SIBOGO'}</span>
                 </button>
 
-                {/* SINGLE EXCLUSIVE SHORTCUT: SUPER ADMIN (BENISIUS) */}
-                <div className="pt-3 border-t border-slate-100 space-y-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block text-center">
-                    Akses Cepat Pengembang Sistem:
-                  </span>
-                  
-                  <button
-                    type="button"
-                    onClick={handleQuickLoginBenisius}
-                    className="w-full p-2.5 text-left border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-blue-50 to-indigo-50 hover:from-amber-100 hover:to-indigo-100 rounded-xl transition-all shadow-2xs group flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-blue-950 text-amber-300 flex items-center justify-center font-black text-xs shrink-0 border border-amber-300/40 group-hover:scale-105 transition-transform">
-                        <Crown className="w-4 h-4 text-amber-300" />
-                      </div>
-                      <div className="leading-tight">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-blue-950">
-                            Benisius Rahmat Basuki, S.Pd
-                          </span>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-400 text-amber-950">
-                            Super Admin
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          user: <strong>benisiusbasuki24</strong> (Akses Hapus Penuh)
-                        </span>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-blue-800 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-
               </form>
             )}
 
