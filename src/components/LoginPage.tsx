@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  Crown,
   KeyRound,
   Lock,
   LogIn,
@@ -58,18 +57,6 @@ export const LoginPage: React.FC = () => {
     const result = login(loginIdentifier, loginPassword);
     setIsLoading(false);
 
-    if (result.success) {
-      setSuccessMessage(result.message);
-    } else {
-      setErrorMessage(result.message);
-    }
-  };
-
-  const handleQuickLoginBenisius = () => {
-    setErrorMessage(null);
-    setIsLoading(true);
-    const result = login('benisiusbasuki24', '123');
-    setIsLoading(false);
     if (result.success) {
       setSuccessMessage(result.message);
     } else {
@@ -532,13 +519,6 @@ export const LoginPage: React.FC = () => {
               }}
             />
 
-          </div>
-
-          {/* Card Footer Note */}
-          <div className="bg-slate-50 border-t border-slate-100 px-6 py-2.5 text-center">
-            <p className="text-[10px] text-slate-400">
-              SD BOPKRI Gondolayu · Menumbuhkan Iman, Ilmu, dan Karakter Kasih
-            </p>
           </div>
 
         </div>

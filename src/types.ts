@@ -306,21 +306,57 @@ export interface SPMBRegistration {
   id: string;
   registrationNumber: string; // e.g. "SPMB-2026/001"
   nis: string; // Auto-generated NIS e.g. "2026001"
-  fullName: string;
-  gender: 'L' | 'P';
-  birthPlace: string;
-  birthDate: string; // YYYY-MM-DD
-  parentName: string;
-  parentPhone: string; // WhatsApp
-  parentEmail: string;
-  address: string;
-  previousSchool?: string; // Asal TK / PAUD
+  fullName: string; // Nama Lengkap (*)
+  previousSchool?: string; // Asal sekolah (*)
+  birthPlace: string; // Tempat lahir (*)
+  birthDate: string; // Tanggal lahir (*) (YYYY-MM-DD)
+  nik?: string; // NIK (*)
+  nisn?: string; // NISN (*)
+  gender: 'L' | 'P'; // Jenis kelamin (*)
+  heightCm?: number; // Tinggi badan (dalam cm) (*)
+  weightKg?: number; // Berat badan (dalam kg) (*)
+  headCircumferenceCm?: number; // Lingkar kepala (dalam cm)
+  noKk?: string; // No. KK (*)
+  aktaLahirRegNo?: string; // No. Registrasi Akta Lahir (*)
+  religion?: string; // Agama (*)
+  address: string; // Alamat tempat tinggal (sesuai KK) (*)
+  rt?: string; // RT (sesuai KK) (*)
+  rw?: string; // RW (sesuai KK) (*)
+  dusun?: string; // Nama dusun
+  kelurahan?: string; // Desa/Kelurahan (sesuai KK) (*)
+  kecamatan?: string; // Kecamatan (sesuai KK) (*)
+  kabupatenKota?: string; // Kabupaten/Kota (sesuai KK) (*)
+  provinsi?: string; // Provinsi (sesuai KK) (*)
+  postalCode?: string; // Kode pos (sesuai KK) (*)
+  residenceType?: string; // Tempat tinggal (*)
+  transportationMode?: string; // Moda Transportasi (*)
+  distanceToSchoolKm?: number; // Jarak rumah ke sekolah (dalam kilometer) (*)
+  travelTimeToSchoolMin?: number; // Waktu tempuh ke sekolah (dalam menit) (*)
+  birthOrder?: number; // Anak ke-berapa (berdasarkan KK) (*)
+  familyRelationStatus?: string; // Status hubungan dalam keluarga (*)
+  siblingsCount?: number; // Jumlah saudara kandung (*)
+  isKpsRecipient?: 'YA' | 'TIDAK'; // Penerima KPS (*)
+  kpsNumber?: string;
+  hasKip?: 'YA' | 'TIDAK'; // Apakah punya KIP (*)
+  kipNumber?: string;
+  
+  // Berkas Dokumen (max 10MB)
+  docPasFoto?: string; // Upload pas foto terbaru (*)
+  docKartuKeluarga?: string; // Upload Kartu Keluarga (C1) (*)
+  docAktaLahir?: string; // Upload Akta Lahir (*)
+  docSuratTkOrPindah?: string; // Surat keterangan TK / Pindah (opsional)
+  docSuratPsikolog?: string; // Surat Keterangan Psikolog (opsional)
+
+  // Kontak Orang Tua & Jalur
   targetGrade: string; // Default "Kelas 1A"
   entryTrack: SPMBEntryTrack;
   status: SPMBStatus;
   registrationDate: string; // ISO string
   emailNotificationSent: boolean;
   emailSentAt?: string;
+  parentName: string;
+  parentPhone: string; // WhatsApp
+  parentEmail: string;
   notes?: string;
 }
 
