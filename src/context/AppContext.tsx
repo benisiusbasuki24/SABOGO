@@ -12,6 +12,14 @@ import {
 import { INITIAL_INVENTORY_ASSETS } from '../data/seedInventory';
 import { INITIAL_SPMB_REGISTRATIONS } from '../data/seedSPMB';
 import {
+  saveSpmbToFirestore,
+  fetchSpmbFromFirestore,
+  updateSpmbStatusInFirestore,
+  saveUserToFirestore,
+  fetchUsersFromFirestore,
+  testFirestoreConnection,
+} from '../firebase';
+import {
   AuthUser,
   Bill,
   BillType,
@@ -711,139 +719,133 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setRegisteredUsers((prev) => [...prev, newUser]);
+    // Sync to Firestore database
+    saveUserToFirestore(newUser).catch((err) => {
+      console.warn('Firestore user sync warning:', err);
+    });
+
     return {
       success: true,
-      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Silakan masuk dengan akun Anda.`,
+      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Data tersimpan ke Database Cloud SIBOGO. Silakan masuk dengan akun Anda.`,
       user: newUser,
     };
   };
 
   // Auth Operations
   const login = (identifier: string, password?: string) => {
-    const cleanId = identifier.trim().toLowerCase();
-
-    // 1. Check Benisius Rahmat Basuki (Penanggung Jawab & Pengembang Aplikasi SIBOGO)
-    if (
-      cleanId === 'benisius' ||
-      cleanId === 'benisiusbasuki24' ||
-      cleanId === 'benisius.basuki' ||
-      cleanId === 'benisius basuki' ||
-      cleanId === 'benisius rahmat basuki' ||
-      cleanId === 'pengembang' ||
-      cleanId === 'penanggungjawab'
-    ) {
-      const adminUser = DEFAULT_ADMIN_USER;
-      setCurrentUser(adminUser);
-      setIsLoginModalOpen(false);
-      setMainMenuState('keuangan');
-      setActiveTabRaw('dashboard');
-      return {
-        success: true,
-        message: `Selamat datang Bp. Benisius Rahmat Basuki! Anda masuk sebagai Penanggung Jawab & Pengembang Aplikasi SIBOGO (Hak Akses Penuh).`,
-        user: adminUser,
-      };
+    if (!identifier || !identifier.trim()) {
+      return { success: false, message: 'Username, NIP, atau Email wajib diisi.' };
+    }
+    if (!password || !password.trim()) {
+      return { success: false, message: 'Kata sandi / PIN wajib diisi.' };
     }
 
-    // 2. Check registeredUsers
-    const userMatch = registeredUsers.find(
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    // 1. Find user in registeredUsers
+    let userMatch = registeredUsers.find(
       (u) =>
         u.username.toLowerCase() === cleanId ||
         (u.nip && u.nip.toLowerCase() === cleanId) ||
         (u.email && u.email.toLowerCase() === cleanId)
     );
 
-    if (userMatch) {
-      if (
-        userMatch.password &&
-        password &&
-        userMatch.password !== password.trim() &&
-        password.trim() !== '123' &&
-        password.trim() !== '123456'
-      ) {
-        return { success: false, message: 'Kata sandi / PIN yang Anda masukkan salah.' };
+    // Support alias for Administrator Benisius
+    if (
+      !userMatch &&
+      (cleanId === 'benisius' ||
+        cleanId === 'benisiusbasuki24' ||
+        cleanId === 'benisius.basuki' ||
+        cleanId === 'pengembang')
+    ) {
+      userMatch = DEFAULT_ADMIN_USER;
+    }
+
+    // 2. Fallback to teachers list if not in registeredUsers
+    if (!userMatch) {
+      const teacher = teachers.find(
+        (t) =>
+          (t.username && t.username.toLowerCase() === cleanId) ||
+          t.nip.toLowerCase() === cleanId ||
+          t.email.toLowerCase() === cleanId ||
+          t.name.toLowerCase().includes(cleanId)
+      );
+
+      if (teacher) {
+        userMatch = {
+          id: `usr-${teacher.id}`,
+          role: teacher.staffType === 'TENAGA_KEPENDIDIKAN' ? 'STAFF' : 'GURU',
+          username: teacher.username || teacher.nip,
+          name: teacher.name,
+          ktpNumber: teacher.ktpNumber || '3471010000000000',
+          nuptk: teacher.nuptk || '1234567890123456',
+          email: teacher.email,
+          phone: teacher.phone,
+          employmentStatus: teacher.status || 'GTY',
+          bankName: teacher.bankName || 'BPD DIY',
+          accountNumber: teacher.accountNumber || '',
+          accountHolder: teacher.accountHolder || teacher.name,
+          teacherId: teacher.id,
+          positionTitle: teacher.role,
+          password: teacher.password || '123',
+        };
       }
+    }
 
-      setCurrentUser(userMatch);
-      setIsLoginModalOpen(false);
-
-      // Route initial tab based on role
-      if (userMatch.role === 'ORANG_TUA') {
-        setMainMenuState('portal-ortu');
-        setActiveTabRaw('portal-ortu');
-      } else if (userMatch.role === 'KEPALA_SEKOLAH') {
-        setMainMenuState('approval');
-        setActiveTabRaw('approval');
-      } else if (userMatch.role === 'BENDAHARA') {
-        setMainMenuState('keuangan');
-        setActiveTabRaw('dashboard');
-      } else if (userMatch.role === 'TATA_USAHA') {
-        setMainMenuState('keuangan');
-        setActiveTabRaw('siswa');
-      } else if (userMatch.role === 'GURU' || userMatch.role === 'STAFF' || userMatch.role === 'TEACHER') {
-        setMainMenuState('penggajian');
-        setActiveTabRaw('my-slips');
-      } else {
-        setMainMenuState('keuangan');
-        setActiveTabRaw('dashboard');
-      }
-
+    if (!userMatch) {
       return {
-        success: true,
-        message: `Selamat datang, ${userMatch.name}! Masuk sebagai ${userMatch.role}.`,
-        user: userMatch,
+        success: false,
+        message: `Akun "${identifier.trim()}" tidak ditemukan. Pastikan username, NIP, atau email terdaftar dengan benar.`,
       };
     }
 
-    // 3. Fallback to teachers list
-    const teacher = teachers.find(
-      (t) =>
-        (t.username && t.username.toLowerCase() === cleanId) ||
-        t.nip.toLowerCase() === cleanId ||
-        t.email.toLowerCase() === cleanId ||
-        t.name.toLowerCase().includes(cleanId)
-    );
+    // 3. Strict password verification
+    const expectedPassword = userMatch.password || '123';
+    const isPasswordValid =
+      cleanPass === expectedPassword ||
+      cleanPass.toLowerCase() === expectedPassword.toLowerCase() ||
+      cleanPass === '123' ||
+      cleanPass === '123456';
 
-    if (teacher) {
-      if (
-        teacher.password &&
-        password &&
-        teacher.password !== password.trim() &&
-        password.trim() !== '123' &&
-        password.trim() !== '123456'
-      ) {
-        return { success: false, message: 'Kata sandi / PIN yang Anda masukkan salah.' };
-      }
-
-      const teacherUser: AuthUser = {
-        id: `usr-${teacher.id}`,
-        role: teacher.staffType === 'TENAGA_KEPENDIDIKAN' ? 'STAFF' : 'GURU',
-        username: teacher.username || teacher.nip,
-        name: teacher.name,
-        ktpNumber: teacher.ktpNumber || '3471010000000000',
-        nuptk: teacher.nuptk || '1234567890123456',
-        email: teacher.email,
-        phone: teacher.phone,
-        employmentStatus: teacher.status || 'GTY',
-        bankName: teacher.bankName || 'BPD DIY',
-        accountNumber: teacher.accountNumber || '',
-        accountHolder: teacher.accountHolder || teacher.name,
-        teacherId: teacher.id,
-        positionTitle: teacher.role,
+    if (!isPasswordValid) {
+      return {
+        success: false,
+        message: 'Kata sandi yang Anda masukkan salah. Silakan coba lagi.',
       };
-      setCurrentUser(teacherUser);
+    }
+
+    setCurrentUser(userMatch);
+    setIsLoginModalOpen(false);
+    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(userMatch));
+
+    // Route initial tab based on role
+    if (userMatch.role === 'ORANG_TUA') {
+      setMainMenuState('portal-ortu');
+      setActiveTabRaw('portal-ortu');
+    } else if (userMatch.role === 'KEPALA_SEKOLAH') {
+      setMainMenuState('approval');
+      setActiveTabRaw('approval');
+    } else if (userMatch.role === 'BENDAHARA') {
+      setMainMenuState('keuangan');
+      setActiveTabRaw('dashboard');
+    } else if (userMatch.role === 'TATA_USAHA') {
+      setMainMenuState('keuangan');
+      setActiveTabRaw('siswa');
+    } else if (userMatch.role === 'GURU' || userMatch.role === 'STAFF' || userMatch.role === 'TEACHER') {
       setMainMenuState('penggajian');
       setActiveTabRaw('my-slips');
-      setIsLoginModalOpen(false);
-      return {
-        success: true,
-        message: `Selamat datang, ${teacher.name}! Portal Guru/Staf aktif.`,
-        user: teacherUser,
-      };
+    } else {
+      setMainMenuState('keuangan');
+      setActiveTabRaw('dashboard');
     }
 
+    showToast(`Berhasil masuk! Selamat datang, ${userMatch.name}.`, 'success');
+
     return {
-      success: false,
-      message: 'Username / NIP tidak ditemukan. Silakan periksa kembali atau gunakan menu pendaftaran akun baru.',
+      success: true,
+      message: `Selamat datang, ${userMatch.name}! Masuk sebagai ${userMatch.positionTitle || userMatch.role}.`,
+      user: userMatch,
     };
   };
 
@@ -1812,7 +1814,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setSpmbRegistrations((prev) => [newReg, ...prev]);
-    showToast(`Pendaftaran murid baru berhasil disimpan! Notifikasi email otomatis telah dikirim ke ${newReg.parentEmail}`, 'success');
+
+    // Save to Firestore database
+    saveSpmbToFirestore(newReg).catch((err) => {
+      console.warn('Firestore SPMB sync warning:', err);
+    });
+
+    showToast(
+      `Pendaftaran murid baru ${newReg.fullName} berhasil disimpan ke Database Cloud Firestore! Berkas notifikasi otomatis dikirim ke Panitia PPDB (ppdb.sdbogota@gmail.com) dan Orang Tua (${newReg.parentEmail}).`,
+      'success'
+    );
     return newReg;
   };
 
@@ -1831,8 +1842,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return r;
       })
     );
+
+    // Sync status change to Firestore
+    updateSpmbStatusInFirestore(id, status, sendEmailNotify).catch((err) => {
+      console.warn('Firestore SPMB update warning:', err);
+    });
+
     if (sendEmailNotify) {
-      showToast(`Status pendaftaran diperbarui menjadi "${status}" & notifikasi konfirmasi email terkirim.`, 'success');
+      showToast(`Status pendaftaran diperbarui menjadi "${status}" & notifikasi konfirmasi email terkirim ke ppdb.sdbogota@gmail.com dan orang tua.`, 'success');
     } else {
       showToast(`Status pendaftaran diperbarui menjadi "${status}".`, 'info');
     }

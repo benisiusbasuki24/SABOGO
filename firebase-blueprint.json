@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "spmbRegistration": {
+      "title": "SPMB Registration",
+      "description": "Data pendaftaran calon peserta didik baru SD BOPKRI Gondolayu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "nis": { "type": "string" },
+        "fullName": { "type": "string" },
+        "previousSchool": { "type": "string" },
+        "birthPlace": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "nik": { "type": "string" },
+        "nisn": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "heightCm": { "type": "number" },
+        "weightKg": { "type": "number" },
+        "headCircumferenceCm": { "type": "number" },
+        "noKk": { "type": "string" },
+        "aktaLahirRegNo": { "type": "string" },
+        "religion": { "type": "string" },
+        "address": { "type": "string" },
+        "rt": { "type": "string" },
+        "rw": { "type": "string" },
+        "dusun": { "type": "string" },
+        "kelurahan": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "kabupatenKota": { "type": "string" },
+        "provinsi": { "type": "string" },
+        "postalCode": { "type": "string" },
+        "residenceType": { "type": "string" },
+        "transportationMode": { "type": "string" },
+        "distanceToSchoolKm": { "type": "number" },
+        "travelTimeToSchoolMin": { "type": "number" },
+        "birthOrder": { "type": "number" },
+        "familyRelationStatus": { "type": "string" },
+        "siblingsCount": { "type": "number" },
+        "isKpsRecipient": { "type": "string", "enum": ["YA", "TIDAK"] },
+        "kpsNumber": { "type": "string" },
+        "hasKip": { "type": "string", "enum": ["YA", "TIDAK"] },
+        "kipNumber": { "type": "string" },
+        "docPasFoto": { "type": "string" },
+        "docKartuKeluarga": { "type": "string" },
+        "docAktaLahir": { "type": "string" },
+        "docSuratTkOrPindah": { "type": "string" },
+        "docSuratPsikolog": { "type": "string" },
+        "targetGrade": { "type": "string" },
+        "entryTrack": { "type": "string", "enum": ["REGULER", "ZONASI", "PRESTASI", "AFIRMASI"] },
+        "status": { "type": "string", "enum": ["MENUNGGU_VERIFIKASI", "DITERIMA", "CADANGAN", "DITOLAK"] },
+        "registrationDate": { "type": "string" },
+        "emailNotificationSent": { "type": "boolean" },
+        "emailSentAt": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "registrationNumber", "nis", "fullName", "gender", "birthPlace", "birthDate", "parentName", "parentPhone", "parentEmail", "address", "status", "registrationDate"]
+    },
+    "authUser": {
+      "title": "Auth User",
+      "description": "Akun pengguna sistem informasi SIBOGO",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "nip": { "type": "string" },
+        "positionTitle": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["id", "role", "username", "name", "email"]
+    }
+  },
+  "firestore": {
+    "/spmb_registrations/{regId}": {
+      "schema": { "$ref": "#/entities/spmbRegistration" },
+      "description": "Koleksi pendaftaran siswa baru SPMB SD BOPKRI Gondolayu"
+    },
+    "/registered_users/{userId}": {
+      "schema": { "$ref": "#/entities/authUser" },
+      "description": "Koleksi akun pengguna sistem"
+    }
+  }
+}
