@@ -55,8 +55,26 @@ export const DEFAULT_ADMIN_USER: AuthUser = {
   password: 'Admin123',
 };
 
+export const ADMIN_2_USER: AuthUser = {
+  id: 'usr-admin-filipus',
+  role: 'ADMIN',
+  username: 'filipuswawan',
+  name: 'Filipus Wawan',
+  ktpNumber: '3471011508850001',
+  nuptk: '0',
+  email: 'filipuswawan@gmail.com',
+  phone: '081234567891',
+  employmentStatus: 'Honor Sekolah',
+  bankName: 'Bank Mandiri',
+  accountNumber: '1370023732933',
+  accountHolder: 'Filipus Wawan',
+  positionTitle: 'Administrator 2 SIBOGO',
+  password: 'Admin123',
+};
+
 export const INITIAL_REGISTERED_USERS: AuthUser[] = [
   DEFAULT_ADMIN_USER,
+  ADMIN_2_USER,
   {
     id: 'usr-kepsek-suhari',
     role: 'KEPALA_SEKOLAH',
@@ -507,7 +525,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (currentUser.role === 'ADMIN' ||
      currentUser.username.toLowerCase() === 'benisius' ||
      currentUser.username.toLowerCase() === 'benisiusbasuki24' ||
-     currentUser.name.toLowerCase().includes('benisius'))
+     currentUser.name.toLowerCase().includes('benisius') ||
+     currentUser.username.toLowerCase() === 'filipuswawan' ||
+     currentUser.email.toLowerCase() === 'filipuswawan@gmail.com')
   );
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
@@ -678,6 +698,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
+  // Initial Firestore boot sync for default administrators and cloud data
+  useEffect(() => {
+    saveUserToFirestore(DEFAULT_ADMIN_USER).catch(() => {});
+    saveUserToFirestore(ADMIN_2_USER).catch(() => {});
+
+    // Sync cloud registered users to local state
+    fetchUsersFromFirestore().then((cloudUsers) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        setRegisteredUsers((prev) => {
+          const merged = [...prev];
+          for (const cu of cloudUsers) {
+            if (!merged.some((u) => u.username.toLowerCase() === cu.username.toLowerCase())) {
+              merged.push(cu);
+            }
+          }
+          return merged;
+        });
+      }
+    }).catch(() => {});
+
+    // Sync cloud SPMB registrations to local state
+    fetchSpmbFromFirestore().then((cloudSpmb) => {
+      if (cloudSpmb && cloudSpmb.length > 0) {
+        setSpmbRegistrations((prev) => {
+          const merged = [...prev];
+          for (const cs of cloudSpmb) {
+            if (!merged.some((r) => r.id === cs.id || r.registrationNumber === cs.registrationNumber)) {
+              merged.push(cs);
+            }
+          }
+          return merged;
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
   // Register User Operation
   const registerUser = (data: RegisterUserData) => {
     const cleanUname = data.username.trim().toLowerCase();
@@ -751,7 +807,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         (u.email && u.email.toLowerCase() === cleanId)
     );
 
-    // Support alias for Administrator Benisius
+    // Support alias for Administrator Benisius & Admin 2 (Filipus Wawan)
     if (
       !userMatch &&
       (cleanId === 'benisius' ||
@@ -760,6 +816,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cleanId === 'pengembang')
     ) {
       userMatch = DEFAULT_ADMIN_USER;
+    }
+
+    if (
+      !userMatch &&
+      (cleanId === 'filipuswawan' ||
+        cleanId === 'filipus' ||
+        cleanId === 'filipuswawan@gmail.com' ||
+        cleanId === 'admin2')
+    ) {
+      userMatch = ADMIN_2_USER;
     }
 
     // 2. Fallback to teachers list if not in registeredUsers
@@ -971,6 +1037,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name: 'Benisius Rahmat Basuki, S.Pd',
           role: 'Penanggung Jawab & Pengembang Aplikasi SIBOGO',
           tempPassword: '123',
+        },
+      };
+    }
+
+    // 1b. Check Admin 2 (Filipus Wawan)
+    if (
+      clean === 'filipuswawan@gmail.com' ||
+      clean === 'filipuswawan' ||
+      clean === 'filipus' ||
+      clean === 'admin2'
+    ) {
+      return {
+        success: true,
+        message: 'Data akun Admin 2 berhasil diverifikasi! Rincian username dan kata sandi telah dikirimkan ke email terdaftar: filipuswawan@gmail.com.',
+        details: {
+          username: 'filipuswawan',
+          email: 'filipuswawan@gmail.com',
+          name: 'Filipus Wawan',
+          role: 'Administrator 2 SIBOGO',
+          tempPassword: 'Admin123',
         },
       };
     }
