@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { formatDateIndo, formatDateTimeIndo, formatRupiah, normalizeWhatsAppNumber } from '../utils/formatters';
 import { terbilang } from '../utils/terbilang';
+import { BOPKRI_LOGO, OFFICIAL_STAMP, handleImageError } from '../assets/logo';
 import {
   Check,
   CheckCircle2,
@@ -155,7 +156,8 @@ export const SalarySlipModal: React.FC = () => {
             {/* KOP SURAT */}
             <div className="flex items-center gap-5 border-b-2 border-slate-800 pb-5">
               <img
-                src="/src/assets/images/logo_bopkri_gondolayu.png"
+                src={BOPKRI_LOGO}
+                onError={handleImageError}
                 alt="Logo SD BOPKRI Gondolayu"
                 className="w-20 h-20 object-contain"
                 referrerPolicy="no-referrer"
@@ -367,7 +369,14 @@ export const SalarySlipModal: React.FC = () => {
                 <div className="h-16 relative flex items-center justify-center">
                   {/* Authentic scanned official school stamp */}
                   <img
-                    src={staffInfo.officialStampUrl || '/cap_resmi_bopkri.jpg'}
+                    src={OFFICIAL_STAMP || staffInfo.officialStampUrl || './cap_resmi_bopkri.jpg'}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.dataset.triedFallback) {
+                        target.dataset.triedFallback = 'true';
+                        target.src = './cap_resmi_bopkri.jpg';
+                      }
+                    }}
                     alt="Cap Resmi SD BOPKRI Gondolayu"
                     className="absolute inset-0 m-auto w-24 h-24 object-contain mix-blend-multiply opacity-90 rotate-[-6deg] pointer-events-none select-none z-10"
                   />

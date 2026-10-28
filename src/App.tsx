@@ -23,6 +23,7 @@ import { TeachingAdministrationView } from './components/TeachingAdministrationV
 import { UserProfileModal } from './components/UserProfileModal';
 import { WhatsAppReminderView } from './components/WhatsAppReminderView';
 import { AppProvider, useApp } from './context/AppContext';
+import { BOPKRI_LOGO, handleImageError } from './assets/logo';
 import {
   AlertCircle,
   AlertTriangle,
@@ -188,7 +189,8 @@ const MainLayout: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center gap-2 text-center sm:text-left">
             <div className="flex items-center gap-2">
               <img
-                src="/src/assets/images/logo_bopkri_gondolayu.png"
+                src={BOPKRI_LOGO}
+                onError={handleImageError}
                 alt="Logo BOPKRI"
                 className="w-5 h-5 object-contain"
                 referrerPolicy="no-referrer"

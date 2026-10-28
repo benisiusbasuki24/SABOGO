@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { formatDateTimeIndo, formatRupiah } from '../utils/formatters';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import {
   AlertCircle,
   ArrowRight,
@@ -83,7 +84,8 @@ export const DashboardView: React.FC = () => {
       <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
-            src="/src/assets/images/logo_bopkri_gondolayu.png"
+            src={BOPKRI_LOGO}
+            onError={handleImageError}
             alt="Logo SD BOPKRI"
             className="w-16 h-16 object-contain shrink-0"
             referrerPolicy="no-referrer"

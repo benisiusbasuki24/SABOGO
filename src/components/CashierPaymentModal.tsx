@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Bill, PaymentMethod } from '../types';
 import { formatRupiah } from '../utils/formatters';
+import { QRIS_CODE, QRIS_CODE_FALLBACK } from '../assets/logo';
 import {
   Banknote,
   Check,
@@ -273,7 +274,14 @@ export const CashierPaymentModal: React.FC = () => {
             <div className="rounded-xl border border-slate-200 p-4 bg-slate-50 flex flex-col md:flex-row items-center gap-5">
               <div className="shrink-0 bg-white p-2 rounded-xl shadow-xs border border-slate-200 text-center">
                 <img
-                  src="/src/assets/images/qris_bopkri_code_1792603194917.jpg"
+                  src={QRIS_CODE}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.triedFallback) {
+                      target.dataset.triedFallback = 'true';
+                      target.src = QRIS_CODE_FALLBACK;
+                    }
+                  }}
                   alt="QRIS SD BOPKRI Gondolayu"
                   className="w-48 h-auto object-contain rounded-lg"
                   referrerPolicy="no-referrer"

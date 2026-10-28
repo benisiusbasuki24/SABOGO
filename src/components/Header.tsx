@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { AppNavTab, MainMenuType } from '../context/AppContext';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import {
   Award,
   Banknote,
@@ -402,7 +403,8 @@ export const Header: React.FC = () => {
             className="flex items-center gap-2 text-left group"
           >
             <img
-              src="/src/assets/images/logo_bopkri_gondolayu.png"
+              src={BOPKRI_LOGO}
+              onError={handleImageError}
               alt="SD BOPKRI Gondolayu"
               className="w-8 h-8 sm:w-8.5 sm:h-8.5 object-contain group-hover:scale-105 transition-transform"
               referrerPolicy="no-referrer"

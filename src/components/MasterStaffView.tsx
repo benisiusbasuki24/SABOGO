@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Teacher, StaffType, EmploymentStatus, Gender } from '../types';
 import { formatRupiah, normalizeWhatsAppNumber } from '../utils/formatters';
+import { BOPKRI_LOGO, OFFICIAL_STAMP, handleImageError } from '../assets/logo';
 import {
   downloadStaffTemplate,
   exportStaffToExcel,
@@ -1365,7 +1366,8 @@ const StaffBiodataDetailModal: React.FC<StaffBiodataDetailModalProps> = ({
           {/* KOP SURAT SEKOLAH */}
           <div className="flex items-center gap-5 border-b-2 border-slate-900 pb-4 mb-6">
             <img
-              src="/src/assets/images/logo_bopkri_gondolayu.png"
+              src={BOPKRI_LOGO}
+              onError={handleImageError}
               alt="Logo BOPKRI"
               className="w-20 h-20 object-contain"
               referrerPolicy="no-referrer"
@@ -1520,7 +1522,14 @@ const StaffBiodataDetailModal: React.FC<StaffBiodataDetailModalProps> = ({
               {/* Stempel Resmi */}
               <div className="relative h-20 flex items-center justify-center">
                 <img
-                  src={staffInfo.officialStampUrl || '/cap_resmi_bopkri.jpg'}
+                  src={OFFICIAL_STAMP || staffInfo.officialStampUrl || './cap_resmi_bopkri.jpg'}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.triedFallback) {
+                      target.dataset.triedFallback = 'true';
+                      target.src = './cap_resmi_bopkri.jpg';
+                    }
+                  }}
                   alt="Cap Resmi BOPKRI"
                   className="w-20 h-20 object-contain opacity-80 select-none pointer-events-none"
                   referrerPolicy="no-referrer"

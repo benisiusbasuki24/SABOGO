@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PaymentMethod, PaymentTransaction } from '../types';
 import { exportToCSV, formatDateIndo, formatDateTimeIndo, formatRupiah } from '../utils/formatters';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import {
   Banknote,
   Calendar,
@@ -491,7 +492,8 @@ export const FinancialReportView: React.FC = () => {
         {/* KOP SURAT */}
         <div className="flex items-center gap-5 border-b-2 border-slate-900 pb-4 mb-6">
           <img
-            src="/src/assets/images/logo_bopkri_gondolayu.png"
+            src={BOPKRI_LOGO}
+            onError={handleImageError}
             alt="Logo BOPKRI"
             className="w-20 h-20 object-contain"
           />

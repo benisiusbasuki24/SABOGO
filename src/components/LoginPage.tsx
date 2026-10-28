@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { UserRole } from '../types';
 import {
@@ -117,7 +118,8 @@ export const LoginPage: React.FC = () => {
       <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-2.5">
           <img
-            src="/src/assets/images/logo_bopkri_gondolayu.png"
+            src={BOPKRI_LOGO}
+            onError={handleImageError}
             alt="SD BOPKRI Gondolayu"
             className="w-9 h-9 object-contain"
             referrerPolicy="no-referrer"
@@ -148,7 +150,8 @@ export const LoginPage: React.FC = () => {
         <div className="text-center space-y-2">
           <div className="inline-flex p-3 bg-white/10 border border-white/15 rounded-2xl shadow-xl backdrop-blur-md mb-1">
             <img
-              src="/src/assets/images/logo_bopkri_gondolayu.png"
+              src={BOPKRI_LOGO}
+              onError={handleImageError}
               alt="Logo SD BOPKRI Gondolayu"
               className="w-13 h-13 object-contain drop-shadow"
               referrerPolicy="no-referrer"

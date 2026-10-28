@@ -22,7 +22,7 @@ export const INITIAL_STAFF_INFO: SchoolStaffInfo = {
   cashier: 'Nastiti Ken Utami',
   academicYear: '2026/2027',
   appDeveloper: 'Benisius Rahmat Basuki, S.Pd',
-  officialStampUrl: '/cap_resmi_bopkri.jpg',
+  officialStampUrl: './cap_resmi_bopkri.jpg',
 };
 
 export const INITIAL_BILL_TYPES: BillType[] = [

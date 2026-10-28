@@ -7,6 +7,7 @@ import {
   AssetStatus,
   InventoryAsset,
 } from '../types';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import {
   AlertTriangle,
   Archive,
@@ -1295,7 +1296,8 @@ export const InventoryView: React.FC = () => {
             <div className="border-2 border-dashed border-blue-400 bg-gradient-to-b from-blue-50/50 to-white p-4 rounded-xl text-center space-y-2">
               <div className="flex items-center justify-center gap-2 mb-1">
                 <img
-                  src="/src/assets/images/logo_bopkri_gondolayu.png"
+                  src={BOPKRI_LOGO}
+                  onError={handleImageError}
                   alt="SD BOPKRI Gondolayu"
                   className="w-6 h-6 object-contain"
                   referrerPolicy="no-referrer"

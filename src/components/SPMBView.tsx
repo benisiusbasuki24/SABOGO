@@ -6,6 +6,7 @@ import {
   SPMBStatus,
 } from '../types';
 import { formatDateIndo } from '../utils/formatters';
+import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import {
   AlertCircle,
   Award,
@@ -1958,7 +1959,8 @@ export const SPMBView: React.FC = () => {
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src="/src/assets/images/logo_bopkri_gondolayu.png"
+                    src={BOPKRI_LOGO}
+                    onError={handleImageError}
                     alt="Logo BOPKRI"
                     className="w-16 h-16 object-contain"
                   />
