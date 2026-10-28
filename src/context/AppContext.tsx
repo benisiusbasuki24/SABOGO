@@ -14,9 +14,13 @@ import { INITIAL_SPMB_REGISTRATIONS } from '../data/seedSPMB';
 import {
   saveSpmbToFirestore,
   fetchSpmbFromFirestore,
+  subscribeSpmbFromFirestore,
   updateSpmbStatusInFirestore,
   saveUserToFirestore,
   fetchUsersFromFirestore,
+  subscribeUsersFromFirestore,
+  findUserInFirestore,
+  seedInitialUsersToFirestore,
   testFirestoreConnection,
 } from '../firebase';
 import {
@@ -115,46 +119,6 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     positionTitle: 'Kasir & Staf Tata Usaha',
     password: 'kasir123',
   },
-  {
-    id: 'usr-guru-maria',
-    role: 'GURU',
-    username: 'mariakristianti',
-    name: 'Maria Kristianti, S.Pd',
-    nip: '198402102010012005',
-    email: 'maria.kristianti@bopkri.sch.id',
-    phone: '081328123456',
-    employmentStatus: 'GTY',
-    teacherId: 'tch-01',
-    positionTitle: 'Guru Kelas 1A',
-    password: 'Guru1234',
-  },
-  {
-    id: 'usr-staff-agus',
-    role: 'STAFF',
-    username: 'agustriyono',
-    name: 'Agus Triyono',
-    nip: '198806122014021007',
-    email: 'agus.triyono@bopkri.sch.id',
-    phone: '085643219876',
-    employmentStatus: 'PTY',
-    teacherId: 'tch-08',
-    positionTitle: 'Staf Sarana & Prasarana',
-    password: 'Staff123',
-  },
-  {
-    id: 'usr-ortu-jonathan',
-    role: 'ORANG_TUA',
-    username: 'ortu.jonathan',
-    name: 'Hendrik Prasetyo (Ortu Jonathan)',
-    email: 'hendrik.prasetyo@gmail.com',
-    phone: '081227182930',
-    studentId: 'std-01',
-    studentNis: '2024001',
-    studentName: 'Jonathan Daniel Prasetyo',
-    studentGrade: 'Kelas 4A',
-    positionTitle: 'Orang Tua Murid',
-    password: 'Ortu1234',
-  },
 ];
 
 export type MainMenuType =
@@ -210,8 +174,8 @@ interface AppContextType {
   // Authentication & Role Isolation
   currentUser: AuthUser | null;
   registeredUsers: AuthUser[];
-  registerUser: (data: RegisterUserData) => { success: boolean; message: string; user?: AuthUser };
-  login: (username: string, password?: string) => { success: boolean; message: string; user?: AuthUser };
+  registerUser: (data: RegisterUserData) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
+  login: (username: string, password?: string) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
   logout: () => void;
   switchUser: (user: AuthUser) => void;
   isLoginModalOpen: boolean;
@@ -494,11 +458,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const [registeredUsers, setRegisteredUsers] = useState<AuthUser[]>(() => {
+    const deletedUsernames = ['mariakristianti', 'agustriyono', 'ortu.jonathan'];
     const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
     if (!saved) return INITIAL_REGISTERED_USERS;
     try {
       const parsed: AuthUser[] = JSON.parse(saved);
-      const merged = [...parsed];
+      const cleaned = parsed.filter((u) => !deletedUsernames.includes(u.username.toLowerCase()));
+      const merged = [...cleaned];
       for (const init of INITIAL_REGISTERED_USERS) {
         if (!merged.some((u) => u.username.toLowerCase() === init.username.toLowerCase())) {
           merged.push(init);
@@ -700,42 +666,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Initial Firestore boot sync for default administrators and cloud data
   useEffect(() => {
-    saveUserToFirestore(DEFAULT_ADMIN_USER).catch(() => {});
-    saveUserToFirestore(ADMIN_2_USER).catch(() => {});
+    // 1. Seed all initial standard users into Firestore
+    seedInitialUsersToFirestore(INITIAL_REGISTERED_USERS).catch(() => {});
 
-    // Sync cloud registered users to local state
-    fetchUsersFromFirestore().then((cloudUsers) => {
+    // 2. Real-time subscription to cloud registered users across all devices
+    const unsubscribeUsers = subscribeUsersFromFirestore((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
         setRegisteredUsers((prev) => {
           const merged = [...prev];
           for (const cu of cloudUsers) {
-            if (!merged.some((u) => u.username.toLowerCase() === cu.username.toLowerCase())) {
+            const idx = merged.findIndex(
+              (u) =>
+                u.id === cu.id ||
+                (u.username && cu.username && u.username.toLowerCase() === cu.username.toLowerCase()) ||
+                (u.email && cu.email && u.email.toLowerCase() === cu.email.toLowerCase())
+            );
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...cu };
+            } else {
               merged.push(cu);
             }
           }
           return merged;
         });
       }
-    }).catch(() => {});
+    });
 
-    // Sync cloud SPMB registrations to local state
-    fetchSpmbFromFirestore().then((cloudSpmb) => {
+    // 3. Real-time subscription to SPMB registrations across all devices
+    const unsubscribeSpmb = subscribeSpmbFromFirestore((cloudSpmb) => {
       if (cloudSpmb && cloudSpmb.length > 0) {
         setSpmbRegistrations((prev) => {
           const merged = [...prev];
           for (const cs of cloudSpmb) {
-            if (!merged.some((r) => r.id === cs.id || r.registrationNumber === cs.registrationNumber)) {
+            const idx = merged.findIndex(
+              (r) => r.id === cs.id || r.registrationNumber === cs.registrationNumber
+            );
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...cs };
+            } else {
               merged.push(cs);
             }
           }
           return merged;
         });
       }
-    }).catch(() => {});
+    });
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeSpmb();
+    };
   }, []);
 
-  // Register User Operation
-  const registerUser = (data: RegisterUserData) => {
+  // Register User Operation (Async with Cloud Firestore Confirmation)
+  const registerUser = async (
+    data: RegisterUserData
+  ): Promise<{ success: boolean; message: string; user?: AuthUser }> => {
     const cleanUname = data.username.trim().toLowerCase();
     if (!cleanUname || !data.password || !data.name.trim()) {
       return { success: false, message: 'Nama lengkap, username, dan kata sandi wajib diisi.' };
@@ -745,9 +731,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Username harus terdiri dari minimal 8 karakter.' };
     }
 
-    const exists = registeredUsers.some((u) => u.username.toLowerCase() === cleanUname);
-    if (exists) {
+    const localExists = registeredUsers.some((u) => u.username.toLowerCase() === cleanUname);
+    if (localExists) {
       return { success: false, message: `Username "${cleanUname}" sudah terdaftar. Silakan gunakan username lain.` };
+    }
+
+    // Check directly in Cloud Firestore in case registered on another device
+    try {
+      const cloudMatch = await findUserInFirestore(cleanUname);
+      if (cloudMatch) {
+        return { success: false, message: `Username "${cleanUname}" sudah terdaftar di database cloud SIBOGO. Silakan masuk dengan akun Anda.` };
+      }
+    } catch (err) {
+      console.warn('Cloud username check warning:', err);
     }
 
     const newUser: AuthUser = {
@@ -774,21 +770,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    setRegisteredUsers((prev) => [...prev, newUser]);
-    // Sync to Firestore database
-    saveUserToFirestore(newUser).catch((err) => {
+    // Save directly to Firestore cloud database
+    try {
+      await saveUserToFirestore(newUser);
+    } catch (err) {
       console.warn('Firestore user sync warning:', err);
-    });
+    }
+
+    setRegisteredUsers((prev) => [...prev, newUser]);
 
     return {
       success: true,
-      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Data tersimpan ke Database Cloud SIBOGO. Silakan masuk dengan akun Anda.`,
+      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Data tersimpan ke Database Cloud SIBOGO dan dapat diakses dari perangkat mana pun.`,
       user: newUser,
     };
   };
 
-  // Auth Operations
-  const login = (identifier: string, password?: string) => {
+  // Auth Operations (Async with On-Demand Cloud Lookup)
+  const login = async (
+    identifier: string,
+    password?: string
+  ): Promise<{ success: boolean; message: string; user?: AuthUser }> => {
     if (!identifier || !identifier.trim()) {
       return { success: false, message: 'Username, NIP, atau Email wajib diisi.' };
     }
@@ -856,6 +858,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           positionTitle: teacher.role,
           password: teacher.password || '123',
         };
+      }
+    }
+
+    // 3. Fallback to Cloud Firestore lookup (vital when logging in from external devices)
+    if (!userMatch) {
+      try {
+        const cloudUser = await findUserInFirestore(cleanId);
+        if (cloudUser) {
+          userMatch = cloudUser;
+          setRegisteredUsers((prev) => {
+            if (!prev.some((u) => u.username.toLowerCase() === cloudUser.username.toLowerCase())) {
+              return [...prev, cloudUser];
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.warn('Cloud login lookup warning:', err);
       }
     }
 

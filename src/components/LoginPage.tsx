@@ -44,7 +44,7 @@ export const LoginPage: React.FC = () => {
   const [regStudentName, setRegStudentName] = useState('');
   const [regStudentNis, setRegStudentNis] = useState('');
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -55,17 +55,21 @@ export const LoginPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    const result = login(loginIdentifier, loginPassword);
-    setIsLoading(false);
-
-    if (result.success) {
-      setSuccessMessage(result.message);
-    } else {
-      setErrorMessage(result.message);
+    try {
+      const result = await login(loginIdentifier, loginPassword);
+      if (result.success) {
+        setSuccessMessage(result.message);
+      } else {
+        setErrorMessage(result.message);
+      }
+    } catch {
+      setErrorMessage('Terjadi kendala saat menghubungi database. Silakan coba kembali.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -84,30 +88,35 @@ export const LoginPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    const res = registerUser({
-      name: regName.trim(),
-      username: cleanUsername,
-      password: regPassword.trim(),
-      role: regRole,
-      email: regEmail.trim(),
-      phone: regPhone.trim(),
-      nip: regNip.trim() || undefined,
-      studentName: regStudentName.trim() || undefined,
-      studentNis: regStudentNis.trim() || undefined,
-    });
-    setIsLoading(false);
+    try {
+      const res = await registerUser({
+        name: regName.trim(),
+        username: cleanUsername,
+        password: regPassword.trim(),
+        role: regRole,
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+        nip: regNip.trim() || undefined,
+        studentName: regStudentName.trim() || undefined,
+        studentNis: regStudentNis.trim() || undefined,
+      });
 
-    if (res.success) {
-      setSuccessMessage(`${res.message} Anda sekarang dapat langsung masuk.`);
-      // Prefill login
-      setLoginIdentifier(cleanUsername);
-      setLoginPassword(regPassword.trim());
-      // Switch to login tab after brief pause
-      setTimeout(() => {
-        setActiveTab('LOGIN');
-      }, 1500);
-    } else {
-      setErrorMessage(res.message);
+      if (res.success) {
+        setSuccessMessage(`${res.message} Anda sekarang dapat langsung masuk.`);
+        // Prefill login
+        setLoginIdentifier(cleanUsername);
+        setLoginPassword(regPassword.trim());
+        // Switch to login tab after brief pause
+        setTimeout(() => {
+          setActiveTab('LOGIN');
+        }, 1500);
+      } else {
+        setErrorMessage(res.message);
+      }
+    } catch {
+      setErrorMessage('Terjadi kendala pendaftaran ke database cloud. Silakan coba kembali.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -242,7 +251,7 @@ export const LoginPage: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="Contoh: benisiusbasuki24 atau mariakristianti"
+                      placeholder="Contoh: benisiusbasuki24 atau filipuswawan"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
                       className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium transition-all"

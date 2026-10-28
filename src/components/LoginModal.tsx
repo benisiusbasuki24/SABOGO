@@ -37,7 +37,7 @@ export const LoginModal: React.FC = () => {
 
   if (!isLoginModalOpen) return null;
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -47,21 +47,25 @@ export const LoginModal: React.FC = () => {
       return;
     }
 
-    const result = login(identifier, password);
-    if (result.success) {
-      setSuccessMessage(result.message);
-      setTimeout(() => {
-        setIsLoginModalOpen(false);
-        setSuccessMessage(null);
-        setIdentifier('');
-        setPassword('');
-      }, 700);
-    } else {
-      setErrorMessage(result.message);
+    try {
+      const result = await login(identifier, password);
+      if (result.success) {
+        setSuccessMessage(result.message);
+        setTimeout(() => {
+          setIsLoginModalOpen(false);
+          setSuccessMessage(null);
+          setIdentifier('');
+          setPassword('');
+        }, 700);
+      } else {
+        setErrorMessage(result.message);
+      }
+    } catch {
+      setErrorMessage('Terjadi kendala saat menghubungi database. Silakan coba kembali.');
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -79,24 +83,28 @@ export const LoginModal: React.FC = () => {
       return;
     }
 
-    const res = registerUser({
-      name: regName.trim(),
-      username: cleanUsername,
-      password: regPassword.trim(),
-      role: regRole,
-      email: regEmail.trim(),
-      phone: regPhone.trim(),
-    });
+    try {
+      const res = await registerUser({
+        name: regName.trim(),
+        username: cleanUsername,
+        password: regPassword.trim(),
+        role: regRole,
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+      });
 
-    if (res.success) {
-      setSuccessMessage(`${res.message} Silakan masuk.`);
-      setIdentifier(cleanUsername);
-      setPassword(regPassword.trim());
-      setTimeout(() => {
-        setActiveTab('LOGIN');
-      }, 1400);
-    } else {
-      setErrorMessage(res.message);
+      if (res.success) {
+        setSuccessMessage(`${res.message} Silakan masuk.`);
+        setIdentifier(cleanUsername);
+        setPassword(regPassword.trim());
+        setTimeout(() => {
+          setActiveTab('LOGIN');
+        }, 1400);
+      } else {
+        setErrorMessage(res.message);
+      }
+    } catch {
+      setErrorMessage('Terjadi kendala pendaftaran ke database cloud. Silakan coba kembali.');
     }
   };
 
@@ -183,7 +191,7 @@ export const LoginModal: React.FC = () => {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Contoh: benisiusbasuki24 atau mariakristianti"
+                    placeholder="Contoh: benisiusbasuki24 atau filipuswawan"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"

@@ -1,5 +1,110 @@
 {
   "entities": {
+    "student": {
+      "title": "Student",
+      "description": "Data siswa aktif SD BOPKRI Gondolayu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nis": { "type": "string" },
+        "nisn": { "type": "string" },
+        "name": { "type": "string" },
+        "grade": { "type": "string" },
+        "gender": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "address": { "type": "string" },
+        "vaNumber": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "nis", "name", "grade", "parentName"]
+    },
+    "bill": {
+      "title": "Bill",
+      "description": "Data tagihan biaya sekolah siswa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "billTypeId": { "type": "string" },
+        "billTypeName": { "type": "string" },
+        "category": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentNis": { "type": "string" },
+        "studentGrade": { "type": "string" },
+        "amount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "amount", "status"]
+    },
+    "transaction": {
+      "title": "Payment Transaction",
+      "description": "Data transaksi kwitansi kasir pembayaran",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "receiptNumber": { "type": "string" },
+        "billId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "amountPaid": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "paidAt": { "type": "string" },
+        "cashierName": { "type": "string" }
+      },
+      "required": ["id", "receiptNumber", "amountPaid", "paidAt"]
+    },
+    "payroll": {
+      "title": "Payroll Record",
+      "description": "Data rekapitulasi slip gaji guru dan staf",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slipNumber": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "period": { "type": "string" },
+        "netSalary": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "slipNumber", "teacherName", "netSalary"]
+    },
+    "inventoryAsset": {
+      "title": "Inventory Asset",
+      "description": "Data inventaris barang sarana dan prasarana sekolah",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "location": { "type": "string" },
+        "condition": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "code", "name", "category", "condition"]
+    },
+    "teachingAdminDoc": {
+      "title": "Teaching Admin Document",
+      "description": "Dokumen administrasi mengajar guru",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "teacherName", "title", "category"]
+    },
     "spmbRegistration": {
       "title": "SPMB Registration",
       "description": "Data pendaftaran calon peserta didik baru SD BOPKRI Gondolayu",
@@ -9,55 +114,11 @@
         "registrationNumber": { "type": "string" },
         "nis": { "type": "string" },
         "fullName": { "type": "string" },
-        "previousSchool": { "type": "string" },
-        "birthPlace": { "type": "string" },
-        "birthDate": { "type": "string" },
-        "nik": { "type": "string" },
-        "nisn": { "type": "string" },
-        "gender": { "type": "string", "enum": ["L", "P"] },
-        "heightCm": { "type": "number" },
-        "weightKg": { "type": "number" },
-        "headCircumferenceCm": { "type": "number" },
-        "noKk": { "type": "string" },
-        "aktaLahirRegNo": { "type": "string" },
-        "religion": { "type": "string" },
-        "address": { "type": "string" },
-        "rt": { "type": "string" },
-        "rw": { "type": "string" },
-        "dusun": { "type": "string" },
-        "kelurahan": { "type": "string" },
-        "kecamatan": { "type": "string" },
-        "kabupatenKota": { "type": "string" },
-        "provinsi": { "type": "string" },
-        "postalCode": { "type": "string" },
-        "residenceType": { "type": "string" },
-        "transportationMode": { "type": "string" },
-        "distanceToSchoolKm": { "type": "number" },
-        "travelTimeToSchoolMin": { "type": "number" },
-        "birthOrder": { "type": "number" },
-        "familyRelationStatus": { "type": "string" },
-        "siblingsCount": { "type": "number" },
-        "isKpsRecipient": { "type": "string", "enum": ["YA", "TIDAK"] },
-        "kpsNumber": { "type": "string" },
-        "hasKip": { "type": "string", "enum": ["YA", "TIDAK"] },
-        "kipNumber": { "type": "string" },
-        "docPasFoto": { "type": "string" },
-        "docKartuKeluarga": { "type": "string" },
-        "docAktaLahir": { "type": "string" },
-        "docSuratTkOrPindah": { "type": "string" },
-        "docSuratPsikolog": { "type": "string" },
-        "targetGrade": { "type": "string" },
-        "entryTrack": { "type": "string", "enum": ["REGULER", "ZONASI", "PRESTASI", "AFIRMASI"] },
-        "status": { "type": "string", "enum": ["MENUNGGU_VERIFIKASI", "DITERIMA", "CADANGAN", "DITOLAK"] },
-        "registrationDate": { "type": "string" },
-        "emailNotificationSent": { "type": "boolean" },
-        "emailSentAt": { "type": "string" },
-        "parentName": { "type": "string" },
-        "parentPhone": { "type": "string" },
-        "parentEmail": { "type": "string" },
-        "notes": { "type": "string" }
+        "gender": { "type": "string" },
+        "status": { "type": "string" },
+        "registrationDate": { "type": "string" }
       },
-      "required": ["id", "registrationNumber", "nis", "fullName", "gender", "birthPlace", "birthDate", "parentName", "parentPhone", "parentEmail", "address", "status", "registrationDate"]
+      "required": ["id", "registrationNumber", "fullName", "status"]
     },
     "authUser": {
       "title": "Auth User",
@@ -74,17 +135,53 @@
         "positionTitle": { "type": "string" },
         "password": { "type": "string" }
       },
-      "required": ["id", "role", "username", "name", "email"]
+      "required": ["id", "role", "username", "name"]
     }
   },
   "firestore": {
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/student" },
+      "description": "Koleksi data siswa aktif"
+    },
+    "/bills/{billId}": {
+      "schema": { "$ref": "#/entities/bill" },
+      "description": "Koleksi data tagihan sekolah"
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/transaction" },
+      "description": "Koleksi data transaksi kwitansi pembayaran"
+    },
+    "/payrolls/{payrollId}": {
+      "schema": { "$ref": "#/entities/payroll" },
+      "description": "Koleksi slip gaji guru dan staf"
+    },
+    "/inventory_assets/{assetId}": {
+      "schema": { "$ref": "#/entities/inventoryAsset" },
+      "description": "Koleksi inventaris sarana dan prasarana"
+    },
+    "/teaching_docs/{docId}": {
+      "schema": { "$ref": "#/entities/teachingAdminDoc" },
+      "description": "Koleksi administrasi mengajar guru"
+    },
     "/spmb_registrations/{regId}": {
       "schema": { "$ref": "#/entities/spmbRegistration" },
-      "description": "Koleksi pendaftaran siswa baru SPMB SD BOPKRI Gondolayu"
+      "description": "Koleksi pendaftaran siswa baru SPMB"
     },
     "/registered_users/{userId}": {
       "schema": { "$ref": "#/entities/authUser" },
       "description": "Koleksi akun pengguna sistem"
+    },
+    "/teachers/{teacherId}": {
+      "schema": { "$ref": "#/entities/authUser" },
+      "description": "Koleksi data master guru dan staf"
+    },
+    "/bill_types/{typeId}": {
+      "schema": { "$ref": "#/entities/bill" },
+      "description": "Koleksi master pos tarif biaya sekolah"
+    },
+    "/system_config/{configId}": {
+      "schema": { "$ref": "#/entities/authUser" },
+      "description": "Koleksi konfigurasi dan profil sekolah"
     }
   }
 }
