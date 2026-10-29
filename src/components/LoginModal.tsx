@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
-import { UserRole } from '../types';
+import { Student, UserRole } from '../types';
+import { StudentPicker } from './StudentPicker';
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const LoginModal: React.FC = () => {
-  const { isLoginModalOpen, setIsLoginModalOpen, login, registerUser, staffInfo } = useApp();
+  const { isLoginModalOpen, setIsLoginModalOpen, login, registerUser, staffInfo, students } = useApp();
 
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
 
@@ -31,9 +32,10 @@ export const LoginModal: React.FC = () => {
   const [regName, setRegName] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('GURU');
+  const [regRole, setRegRole] = useState<UserRole>('ORANG_TUA');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('08');
+  const [selectedChild, setSelectedChild] = useState<Student | null>(null);
 
   if (!isLoginModalOpen) return null;
 
@@ -83,6 +85,11 @@ export const LoginModal: React.FC = () => {
       return;
     }
 
+    if (regRole === 'ORANG_TUA' && !selectedChild) {
+      setErrorMessage('Pilihan nama anak wajib dipilih agar akun Anda terhubung dengan tagihan putra/putri Anda.');
+      return;
+    }
+
     try {
       const res = await registerUser({
         name: regName.trim(),
@@ -91,6 +98,10 @@ export const LoginModal: React.FC = () => {
         role: regRole,
         email: regEmail.trim(),
         phone: regPhone.trim(),
+        studentId: regRole === 'ORANG_TUA' ? selectedChild?.id : undefined,
+        studentName: regRole === 'ORANG_TUA' ? selectedChild?.name : undefined,
+        studentNis: regRole === 'ORANG_TUA' ? selectedChild?.nis : undefined,
+        studentGrade: regRole === 'ORANG_TUA' ? selectedChild?.grade : undefined,
       });
 
       if (res.success) {
@@ -264,14 +275,40 @@ export const LoginModal: React.FC = () => {
                   onChange={(e) => setRegRole(e.target.value as UserRole)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-bold"
                 >
-                  <option value="KEPALA_SEKOLAH">Kepala Sekolah (Approval, Monitoring)</option>
-                  <option value="BENDAHARA">Bendahara (Keuangan Penuh & Gaji)</option>
-                  <option value="TATA_USAHA">Tata Usaha (Kasir, Siswa, SPMB)</option>
+                  <option value="ORANG_TUA">Orang Tua Murid (Cek Tagihan & Pembayaran Anak)</option>
                   <option value="GURU">Guru (Slip Gaji & Modul Ajar)</option>
                   <option value="STAFF">Staff / Karyawan (Slip Gaji & Sarpras)</option>
-                  <option value="ORANG_TUA">Orang Tua Murid (Cek Tagihan)</option>
+                  <option value="TATA_USAHA">Tata Usaha (Kasir, Siswa, SPMB)</option>
+                  <option value="BENDAHARA">Bendahara (Keuangan Penuh & Gaji)</option>
+                  <option value="KEPALA_SEKOLAH">Kepala Sekolah (Approval, Monitoring)</option>
                 </select>
               </div>
+
+              {regRole === 'ORANG_TUA' && (
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                  <StudentPicker
+                    students={students}
+                    selectedStudentId={selectedChild?.id}
+                    selectedStudentName={selectedChild?.name}
+                    selectedStudentNis={selectedChild?.nis}
+                    onSelect={(student) => {
+                      setSelectedChild(student);
+                      if (student) {
+                        if (!regName.trim() && student.parentName) {
+                          setRegName(student.parentName);
+                        }
+                        if ((regPhone === '08' || !regPhone) && student.parentPhone) {
+                          setRegPhone(student.parentPhone);
+                        }
+                      }
+                    }}
+                    required={true}
+                    label="Pilih Nama Siswa (Anak Anda)"
+                    placeholder="Ketik nama anak atau NIS siswa..."
+                    helperText="Pilih nama anak kandung/asuh Anda agar akun terhubung langsung dengan tagihan & kwitansi anak Anda."
+                  />
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-1">

@@ -22,6 +22,9 @@ import {
   Wallet,
 } from 'lucide-react';
 
+import { Student } from '../types';
+import { StudentPicker } from './StudentPicker';
+
 export const ParentPortalView: React.FC = () => {
   const {
     currentUser,
@@ -30,20 +33,38 @@ export const ParentPortalView: React.FC = () => {
     transactions,
     staffInfo,
     openReceiptPrint,
+    updateUserProfile,
   } = useApp();
 
   // Active sub-tab for Parent Portal
   const [activeSubTab, setActiveSubTab] = useState<'TAGIHAN' | 'HISTORY'>('TAGIHAN');
   const [copiedVa, setCopiedVa] = useState(false);
-
-  // Link student logic:
-  // If currentUser has studentId or studentNis, match with student.
-  // Otherwise, fallback to search by matching parentName, parentPhone, or student username.
   const [selectedStudentIdOverride, setSelectedStudentIdOverride] = useState<string>('');
+  const [linkingChild, setLinkingChild] = useState<Student | null>(null);
 
+  // Find all children belonging to this parent account (strict isolation)
+  const myChildren = useMemo(() => {
+    if (!currentUser) return [];
+    return students.filter((s) => {
+      if (currentUser.studentId && s.id === currentUser.studentId) return true;
+      if (currentUser.studentNis && s.nis === currentUser.studentNis) return true;
+      if (currentUser.studentName && s.name.toLowerCase() === currentUser.studentName.toLowerCase()) return true;
+      // Match by parent phone or parent name if already recorded
+      if (currentUser.phone && s.parentPhone && s.parentPhone.replace(/[^0-9]/g, '').length >= 8) {
+        const cleanParentPhone = currentUser.phone.replace(/[^0-9]/g, '');
+        const cleanStudentPhone = s.parentPhone.replace(/[^0-9]/g, '');
+        if (cleanParentPhone.includes(cleanStudentPhone) || cleanStudentPhone.includes(cleanParentPhone)) return true;
+      }
+      if (currentUser.name && s.parentName && currentUser.name.trim().toLowerCase() === s.parentName.trim().toLowerCase()) return true;
+      return false;
+    });
+  }, [currentUser, students]);
+
+  // Primary linked student
   const matchedStudent = useMemo(() => {
     if (selectedStudentIdOverride) {
-      return students.find((s) => s.id === selectedStudentIdOverride) || null;
+      const found = myChildren.find((s) => s.id === selectedStudentIdOverride);
+      if (found) return found;
     }
     if (currentUser?.studentId) {
       const found = students.find((s) => s.id === currentUser.studentId);
@@ -53,30 +74,38 @@ export const ParentPortalView: React.FC = () => {
       const found = students.find((s) => s.nis === currentUser.studentNis);
       if (found) return found;
     }
-    // Match by parent name or phone or username
-    const foundByParent = students.find(
-      (s) =>
-        (currentUser?.phone && s.parentPhone.includes(currentUser.phone)) ||
-        (currentUser?.name && s.parentName.toLowerCase().includes(currentUser.name.toLowerCase())) ||
-        (currentUser?.username && s.nis === currentUser.username.replace(/[^0-9]/g, ''))
-    );
-    if (foundByParent) return foundByParent;
+    if (currentUser?.studentName) {
+      const found = students.find((s) => s.name.toLowerCase() === currentUser.studentName?.toLowerCase());
+      if (found) return found;
+    }
+    if (myChildren.length > 0) {
+      return myChildren[0];
+    }
+    return null;
+  }, [currentUser, students, myChildren, selectedStudentIdOverride]);
 
-    // Default to the first student for demonstration if none matched
-    return students[0] || null;
-  }, [currentUser, students, selectedStudentIdOverride]);
+  const handleConfirmLinkStudent = async () => {
+    if (!linkingChild) return;
+    await updateUserProfile({
+      studentId: linkingChild.id,
+      studentName: linkingChild.name,
+      studentNis: linkingChild.nis,
+      studentGrade: linkingChild.grade,
+    });
+    setLinkingChild(null);
+  };
 
-  // Student's bills
+  // Student's bills (STRICTLY ISOLATED TO THE MATCHED STUDENT ONLY)
   const studentBills = useMemo(() => {
     if (!matchedStudent) return [];
-    return bills.filter((b) => b.studentId === matchedStudent.id || b.studentNis === matchedStudent.nis);
+    return bills.filter((b) => b.studentId === matchedStudent.id || (matchedStudent.nis && b.studentNis === matchedStudent.nis));
   }, [matchedStudent, bills]);
 
-  // Student's transaction history
+  // Student's transaction history (STRICTLY ISOLATED TO THE MATCHED STUDENT ONLY)
   const studentTransactions = useMemo(() => {
     if (!matchedStudent) return [];
     return transactions.filter(
-      (tx) => tx.studentId === matchedStudent.id || tx.studentNis === matchedStudent.nis
+      (tx) => tx.studentId === matchedStudent.id || (matchedStudent.nis && tx.studentNis === matchedStudent.nis)
     );
   }, [matchedStudent, transactions]);
 
@@ -118,18 +147,18 @@ export const ParentPortalView: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Selector if parent has multiple children */}
-          {students.length > 1 && (
+          {/* Quick Selector if parent has multiple children (ONLY parent's own children!) */}
+          {myChildren.length > 1 && (
             <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-xs shrink-0 max-w-xs">
               <span className="text-[11px] text-blue-200 font-semibold block mb-1">
-                Pilih Profil Siswa (Anak):
+                Pilih Profil Siswa (Anak Anda):
               </span>
               <select
                 value={matchedStudent?.id || ''}
                 onChange={(e) => setSelectedStudentIdOverride(e.target.value)}
                 className="w-full bg-slate-900/90 text-white border border-blue-400/40 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-hidden"
               >
-                {students.map((s) => (
+                {myChildren.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.grade} - NIS {s.nis})
                   </option>
@@ -142,7 +171,8 @@ export const ParentPortalView: React.FC = () => {
 
       {/* Student Biodata & Virtual Account Strip */}
       {matchedStudent ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
+        <>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             
             {/* Left: Student Identity */}
@@ -216,17 +246,8 @@ export const ParentPortalView: React.FC = () => {
 
           </div>
         </div>
-      ) : (
-        <div className="p-8 bg-white border border-slate-200 rounded-2xl text-center text-slate-500">
-          <Users className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-          <p className="text-sm font-semibold text-slate-700">Data siswa tidak ditemukan</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Silakan hubungi Tata Usaha SD BOPKRI Gondolayu untuk menghubungkan akun orang tua dengan data siswa.
-          </p>
-        </div>
-      )}
 
-      {/* KPI Stats for Parent */}
+        {/* KPI Stats for Parent */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         {/* Total Belum Bayar */}
@@ -529,8 +550,44 @@ export const ParentPortalView: React.FC = () => {
             )}
           </div>
         )}
-
+      </div>
+    </>
+  ) : (
+    <div className="bg-white rounded-2xl border-2 border-dashed border-amber-300 p-8 text-center max-w-xl mx-auto space-y-4 shadow-sm my-6">
+      <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-2xl font-bold">
+        <GraduationCap className="w-8 h-8" />
+      </div>
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-slate-900">Akun Orang Tua Belum Terhubung dengan Data Siswa</h3>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Akun Anda saat ini belum ditautkan dengan data putra/putri yang bersekolah di SD BOPKRI Gondolayu. Silakan cari dan pilih nama anak Anda di bawah ini:
+        </p>
+      </div>
+      <div className="text-left bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <StudentPicker
+          students={students}
+          selectedStudentId={linkingChild?.id}
+          selectedStudentName={linkingChild?.name}
+          selectedStudentNis={linkingChild?.nis}
+          onSelect={(s) => setLinkingChild(s)}
+          required={true}
+          label="Pilih Nama Anak Anda"
+          placeholder="Cari berdasarkan nama atau NIS murid..."
+          helperText="Pilih nama anak agar data tagihan dan kwitansi pembayaran langsung tampil."
+        />
+        {linkingChild && (
+          <button
+            type="button"
+            onClick={handleConfirmLinkStudent}
+            className="mt-3 w-full py-2.5 px-4 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Hubungkan Akun Saya dengan {linkingChild.name}</span>
+          </button>
+        )}
       </div>
     </div>
+  )}
+</div>
   );
 };

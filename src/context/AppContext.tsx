@@ -909,6 +909,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Username harus terdiri dari minimal 8 karakter.' };
     }
 
+    if (data.role === 'ORANG_TUA' && !data.studentId && !data.studentName && !data.studentNis) {
+      return {
+        success: false,
+        message: 'Untuk akun Orang Tua Murid, Anda wajib memilih nama siswa (anak) yang bersekolah di SD BOPKRI Gondolayu.',
+      };
+    }
+
     const localExists = registeredUsers.some((u) => u.username.toLowerCase() === cleanUname);
     if (localExists) {
       return { success: false, message: `Username "${cleanUname}" sudah terdaftar. Silakan gunakan username lain.` };
@@ -922,6 +929,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (err) {
       console.warn('Cloud username check warning:', err);
+    }
+
+    // Resolve matching student details if registering as parent
+    let linkedStudentId = data.studentId;
+    let linkedStudentName = data.studentName;
+    let linkedStudentNis = data.studentNis;
+    let linkedStudentGrade = data.studentGrade;
+
+    if (data.role === 'ORANG_TUA') {
+      const matched = students.find(
+        (s) =>
+          (data.studentId && s.id === data.studentId) ||
+          (data.studentNis && s.nis === data.studentNis) ||
+          (data.studentName && s.name.toLowerCase() === data.studentName.toLowerCase())
+      );
+      if (matched) {
+        linkedStudentId = matched.id;
+        linkedStudentName = matched.name;
+        linkedStudentNis = matched.nis;
+        linkedStudentGrade = matched.grade;
+      }
     }
 
     const newUser: AuthUser = {
@@ -940,10 +968,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         data.role === 'STAFF' ? 'Staf / Karyawan' :
         'Orang Tua Murid'
       ),
-      studentId: data.studentId,
-      studentNis: data.studentNis,
-      studentName: data.studentName,
-      studentGrade: data.studentGrade,
+      studentId: linkedStudentId,
+      studentNis: linkedStudentNis,
+      studentName: linkedStudentName,
+      studentGrade: linkedStudentGrade,
       password: data.password.trim(),
       createdAt: new Date().toISOString(),
     };

@@ -25,6 +25,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { StudentPicker } from './StudentPicker';
+
 export const UserProfileModal: React.FC = () => {
   const {
     currentUser,
@@ -33,6 +35,7 @@ export const UserProfileModal: React.FC = () => {
     updateUserProfile,
     changePassword,
     staffInfo,
+    students,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
@@ -55,6 +58,7 @@ export const UserProfileModal: React.FC = () => {
   const [accountHolder, setAccountHolder] = useState('');
 
   // Orang Tua Specific State
+  const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentNis, setStudentNis] = useState('');
   const [studentGrade, setStudentGrade] = useState('Kelas 1A');
@@ -99,6 +103,7 @@ export const UserProfileModal: React.FC = () => {
       setAccountNumber(currentUser.accountNumber || '');
       setAccountHolder(currentUser.accountHolder || currentUser.name || '');
 
+      setStudentId(currentUser.studentId || '');
       setStudentName(currentUser.studentName || '');
       setStudentNis(currentUser.studentNis || '');
       setStudentGrade(currentUser.studentGrade || 'Kelas 1A');
@@ -150,6 +155,7 @@ export const UserProfileModal: React.FC = () => {
           name: fullName.trim(),
           email: email.trim(),
           phone: phone.trim(),
+          studentId: studentId.trim() || undefined,
           studentName: studentName.trim() || undefined,
           studentNis: studentNis.trim() || undefined,
           studentGrade: studentGrade.trim() || undefined,
@@ -637,62 +643,22 @@ export const UserProfileModal: React.FC = () => {
 
                     {/* Data Murid (Anak) Box */}
                     <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-2xl space-y-3">
-                      <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-blue-800" />
-                        <span>Data Siswa Putra / Putri</span>
-                      </span>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div className="sm:col-span-1">
-                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            Nama Lengkap Murid
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Nama Anak"
-                            value={studentName}
-                            onChange={(e) => setStudentName(e.target.value)}
-                            className="w-full px-3 py-2 text-xs bg-white border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-600 text-slate-900"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            NIS Siswa
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. 2024001"
-                            value={studentNis}
-                            onChange={(e) => setStudentNis(e.target.value)}
-                            className="w-full px-3 py-2 text-xs bg-white border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-600 text-slate-900 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                            Kelas Siswa
-                          </label>
-                          <select
-                            value={studentGrade}
-                            onChange={(e) => setStudentGrade(e.target.value)}
-                            className="w-full px-3 py-2 text-xs bg-white border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-600 text-slate-900 font-semibold"
-                          >
-                            <option value="Kelas 1A">Kelas 1A</option>
-                            <option value="Kelas 1B">Kelas 1B</option>
-                            <option value="Kelas 2A">Kelas 2A</option>
-                            <option value="Kelas 2B">Kelas 2B</option>
-                            <option value="Kelas 3A">Kelas 3A</option>
-                            <option value="Kelas 3B">Kelas 3B</option>
-                            <option value="Kelas 4A">Kelas 4A</option>
-                            <option value="Kelas 4B">Kelas 4B</option>
-                            <option value="Kelas 5A">Kelas 5A</option>
-                            <option value="Kelas 5B">Kelas 5B</option>
-                            <option value="Kelas 6A">Kelas 6A</option>
-                            <option value="Kelas 6B">Kelas 6B</option>
-                          </select>
-                        </div>
-                      </div>
+                      <StudentPicker
+                        students={students}
+                        selectedStudentId={studentId}
+                        selectedStudentName={studentName}
+                        selectedStudentNis={studentNis}
+                        onSelect={(s) => {
+                          setStudentId(s?.id || '');
+                          setStudentName(s?.name || '');
+                          setStudentNis(s?.nis || '');
+                          setStudentGrade(s?.grade || 'Kelas 1A');
+                        }}
+                        required={true}
+                        label="Pilih Siswa (Anak Kandung / Asuh)"
+                        placeholder="Ketik nama anak atau NIS siswa..."
+                        helperText="Pilih nama anak agar akun orang tua terhubung langsung dengan tagihan & kwitansi pembayaran anak Anda."
+                      />
                     </div>
                   </div>
                 ) : (

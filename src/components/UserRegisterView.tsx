@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { AuthUser, EmploymentStatus, UserRole } from '../types';
+import { AuthUser, EmploymentStatus, Student, UserRole } from '../types';
+import { StudentPicker } from './StudentPicker';
 import {
   AlertCircle,
   AlertTriangle,
@@ -44,6 +45,7 @@ export const UserRegisterView: React.FC = () => {
     registerUser,
     setActiveTab,
     setMainMenu,
+    students,
   } = useApp();
 
   // Search and filter state
@@ -80,18 +82,20 @@ export const UserRegisterView: React.FC = () => {
   const [editBankName, setEditBankName] = useState('BPD DIY');
   const [editAccountNumber, setEditAccountNumber] = useState('');
   const [editAccountHolder, setEditAccountHolder] = useState('');
+  const [editStudentId, setEditStudentId] = useState('');
   const [editStudentName, setEditStudentName] = useState('');
   const [editStudentNis, setEditStudentNis] = useState('');
   const [editStudentGrade, setEditStudentGrade] = useState('Kelas 1A');
 
   // Add User Form States
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<UserRole>('GURU');
+  const [newRole, setNewRole] = useState<UserRole>('ORANG_TUA');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('08');
   const [newNip, setNewNip] = useState('');
+  const [newStudentId, setNewStudentId] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentNis, setNewStudentNis] = useState('');
   const [newStudentGrade, setNewStudentGrade] = useState('Kelas 1A');
@@ -202,6 +206,7 @@ export const UserRegisterView: React.FC = () => {
     setEditBankName(user.bankName || 'BPD DIY');
     setEditAccountNumber(user.accountNumber || '');
     setEditAccountHolder(user.accountHolder || user.name || '');
+    setEditStudentId(user.studentId || '');
     setEditStudentName(user.studentName || '');
     setEditStudentNis(user.studentNis || '');
     setEditStudentGrade(user.studentGrade || 'Kelas 1A');
@@ -228,6 +233,14 @@ export const UserRegisterView: React.FC = () => {
       return;
     }
 
+    if (editRole === 'ORANG_TUA' && !editStudentName.trim()) {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Pilihan nama siswa/anak wajib dipilih untuk akun Orang Tua Murid.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const updatedUser: AuthUser = {
@@ -246,6 +259,7 @@ export const UserRegisterView: React.FC = () => {
         bankName: editRole !== 'ORANG_TUA' ? editBankName.trim() : undefined,
         accountNumber: editRole !== 'ORANG_TUA' ? editAccountNumber.trim() : undefined,
         accountHolder: editRole !== 'ORANG_TUA' ? editAccountHolder.trim() : undefined,
+        studentId: editRole === 'ORANG_TUA' ? editStudentId || undefined : undefined,
         studentName: editRole === 'ORANG_TUA' ? editStudentName.trim() || undefined : undefined,
         studentNis: editRole === 'ORANG_TUA' ? editStudentNis.trim() || undefined : undefined,
         studentGrade: editRole === 'ORANG_TUA' ? editStudentGrade.trim() || undefined : undefined,
@@ -306,6 +320,14 @@ export const UserRegisterView: React.FC = () => {
       return;
     }
 
+    if (newRole === 'ORANG_TUA' && !newStudentName.trim()) {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Pilihan nama siswa (anak) wajib dipilih untuk akun Orang Tua Murid.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await registerUser({
@@ -316,6 +338,7 @@ export const UserRegisterView: React.FC = () => {
         email: newEmail.trim(),
         phone: newPhone.trim(),
         nip: newRole !== 'ORANG_TUA' ? newNip.trim() || undefined : undefined,
+        studentId: newRole === 'ORANG_TUA' ? newStudentId || undefined : undefined,
         studentName: newRole === 'ORANG_TUA' ? newStudentName.trim() || undefined : undefined,
         studentNis: newRole === 'ORANG_TUA' ? newStudentNis.trim() || undefined : undefined,
         studentGrade: newRole === 'ORANG_TUA' ? newStudentGrade.trim() || undefined : undefined,
@@ -329,6 +352,7 @@ export const UserRegisterView: React.FC = () => {
         setNewEmail('');
         setNewPhone('08');
         setNewNip('');
+        setNewStudentId('');
         setNewStudentName('');
         setNewStudentNis('');
       } else {
@@ -940,60 +964,22 @@ export const UserRegisterView: React.FC = () => {
               {/* Conditional Fields based on editRole */}
               {editRole === 'ORANG_TUA' ? (
                 <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3">
-                  <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                    <GraduationCap className="w-4 h-4 text-blue-700" />
-                    <span>Data Murid Putra / Putri</span>
-                  </span>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Nama Lengkap Murid
-                      </label>
-                      <input
-                        type="text"
-                        value={editStudentName}
-                        onChange={(e) => setEditStudentName(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        NIS Siswa
-                      </label>
-                      <input
-                        type="text"
-                        value={editStudentNis}
-                        onChange={(e) => setEditStudentNis(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Kelas Siswa
-                      </label>
-                      <select
-                        value={editStudentGrade}
-                        onChange={(e) => setEditStudentGrade(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-bold"
-                      >
-                        <option value="Kelas 1A">Kelas 1A</option>
-                        <option value="Kelas 1B">Kelas 1B</option>
-                        <option value="Kelas 2A">Kelas 2A</option>
-                        <option value="Kelas 2B">Kelas 2B</option>
-                        <option value="Kelas 3A">Kelas 3A</option>
-                        <option value="Kelas 3B">Kelas 3B</option>
-                        <option value="Kelas 4A">Kelas 4A</option>
-                        <option value="Kelas 4B">Kelas 4B</option>
-                        <option value="Kelas 5A">Kelas 5A</option>
-                        <option value="Kelas 5B">Kelas 5B</option>
-                        <option value="Kelas 6A">Kelas 6A</option>
-                        <option value="Kelas 6B">Kelas 6B</option>
-                      </select>
-                    </div>
-                  </div>
+                  <StudentPicker
+                    students={students}
+                    selectedStudentId={editStudentId}
+                    selectedStudentName={editStudentName}
+                    selectedStudentNis={editStudentNis}
+                    onSelect={(s) => {
+                      setEditStudentId(s?.id || '');
+                      setEditStudentName(s?.name || '');
+                      setEditStudentNis(s?.nis || '');
+                      setEditStudentGrade(s?.grade || 'Kelas 1A');
+                    }}
+                    required={true}
+                    label="Pilih Siswa (Anak) yang Terhubung"
+                    placeholder="Ketik nama anak atau NIS siswa..."
+                    helperText="Akun orang tua ini akan terhubung langsung dengan tagihan & pembayaran atas nama siswa terpilih."
+                  />
                 </div>
               ) : (
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
@@ -1256,43 +1242,28 @@ export const UserRegisterView: React.FC = () => {
               {/* Conditional Add Fields */}
               {newRole === 'ORANG_TUA' ? (
                 <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
-                  <span className="text-[11px] font-bold text-blue-900 uppercase block">
-                    Data Siswa Putra / Putri:
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Nama Murid (Anak)"
-                      value={newStudentName}
-                      onChange={(e) => setNewStudentName(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
-                    />
-                    <input
-                      type="text"
-                      placeholder="NIS Siswa (e.g. 2024001)"
-                      value={newStudentNis}
-                      onChange={(e) => setNewStudentNis(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-mono"
-                    />
-                    <select
-                      value={newStudentGrade}
-                      onChange={(e) => setNewStudentGrade(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-semibold"
-                    >
-                      <option value="Kelas 1A">Kelas 1A</option>
-                      <option value="Kelas 1B">Kelas 1B</option>
-                      <option value="Kelas 2A">Kelas 2A</option>
-                      <option value="Kelas 2B">Kelas 2B</option>
-                      <option value="Kelas 3A">Kelas 3A</option>
-                      <option value="Kelas 3B">Kelas 3B</option>
-                      <option value="Kelas 4A">Kelas 4A</option>
-                      <option value="Kelas 4B">Kelas 4B</option>
-                      <option value="Kelas 5A">Kelas 5A</option>
-                      <option value="Kelas 5B">Kelas 5B</option>
-                      <option value="Kelas 6A">Kelas 6A</option>
-                      <option value="Kelas 6B">Kelas 6B</option>
-                    </select>
-                  </div>
+                  <StudentPicker
+                    students={students}
+                    selectedStudentId={newStudentId}
+                    selectedStudentName={newStudentName}
+                    selectedStudentNis={newStudentNis}
+                    onSelect={(s) => {
+                      setNewStudentId(s?.id || '');
+                      setNewStudentName(s?.name || '');
+                      setNewStudentNis(s?.nis || '');
+                      setNewStudentGrade(s?.grade || 'Kelas 1A');
+                      if (s?.parentName && !newName.trim()) {
+                        setNewName(s.parentName);
+                      }
+                      if (s?.parentPhone && (newPhone === '08' || !newPhone)) {
+                        setNewPhone(s.parentPhone);
+                      }
+                    }}
+                    required={true}
+                    label="Pilih Siswa (Anak) yang Terhubung"
+                    placeholder="Ketik nama anak atau NIS murid..."
+                    helperText="Pilih nama anak agar akun orang tua langsung terhubung dengan tagihan & kwitansi pembayaran anak Anda."
+                  />
                 </div>
               ) : (
                 <div>
