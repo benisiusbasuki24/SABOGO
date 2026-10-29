@@ -67,22 +67,25 @@ import {
   TeachingAdminDoc,
   ToastNotification,
   UserRole,
+  EmploymentStatus,
 } from '../types';
 
 export const DEFAULT_ADMIN_USER: AuthUser = {
   id: 'usr-admin-benisius',
   role: 'ADMIN',
   username: 'benisiusbasuki24',
-  name: 'Benisius Rahmat Basuki, S.Pd',
+  name: 'Benisius Rahmat Basuki, S.Pd, Gr',
+  nip: '198704242011011009',
   ktpNumber: '3301082204830001',
   nuptk: '0',
   email: 'benisiusbasuki24@guru.sd.belajar.id',
   phone: '087716443331',
   employmentStatus: 'Honor Sekolah',
-  bankName: 'Bank Mandiri',
+  bankName: 'Mandiri',
   accountNumber: '1370023732932',
-  accountHolder: 'Benisius Rahmat Basuki, S.Pd, Gr',
+  accountHolder: 'Benisius Rahmat Basuki',
   positionTitle: 'SuperAdmin & Pengembang SIBOGO',
+  teacherId: 'tch-04',
   password: 'Admin123',
 };
 
@@ -90,16 +93,18 @@ export const ADMIN_2_USER: AuthUser = {
   id: 'usr-admin-filipus',
   role: 'ADMIN',
   username: 'filipuswawan',
-  name: 'Filipus Wawan',
+  name: 'Filipus Wawan Prajawanto, S.T',
+  nip: '198508152012011002',
   ktpNumber: '3471011508850001',
   nuptk: '0',
   email: 'filipuswawan@gmail.com',
-  phone: '081234567891',
+  phone: '085669375856',
   employmentStatus: 'Honor Sekolah',
-  bankName: 'Bank Mandiri',
+  bankName: 'Mandiri',
   accountNumber: '1370023732933',
-  accountHolder: 'Filipus Wawan',
+  accountHolder: 'Filipus Wawan Prajawanto',
   positionTitle: 'Administrator 2 SIBOGO',
+  teacherId: 'tch-05',
   password: 'Admin123',
 };
 
@@ -111,13 +116,17 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     role: 'KEPALA_SEKOLAH',
     username: 'suhari.irawan',
     name: 'FX. Suhari Irawan, S.E, Gr',
-    nip: '197505122002121001',
+    nip: '197405122002121001',
     ktpNumber: '3471011205750001',
     nuptk: '4532753655200002',
-    email: 'suhari.irawan@bopkri.sch.id',
-    phone: '081234567890',
+    email: 'fransiscus.xaverius1420@admin.sd.belajar.id',
+    phone: '081381835379',
     employmentStatus: 'Honor Sekolah',
+    bankName: 'Mandiri',
+    accountNumber: '0012398471',
+    accountHolder: 'FX. Suhari Irawan',
     positionTitle: 'Kepala Sekolah',
+    teacherId: 'tch-01',
     password: 'Kepsek123',
   },
   {
@@ -128,10 +137,14 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     nip: '198203152008012003',
     ktpNumber: '3471021503820002',
     nuptk: '7845760662210003',
-    email: 'eni.utaminingsih@bopkri.sch.id',
-    phone: '081329876543',
+    email: 'eni.utaminingsih@gmail.com',
+    phone: '081578768299',
     employmentStatus: 'GTY',
+    bankName: 'Mandiri',
+    accountNumber: '0012398472',
+    accountHolder: 'Eni Utaminingsih',
     positionTitle: 'Bendahara Sekolah',
+    teacherId: 'tch-02',
     password: 'Bendahara123',
   },
   {
@@ -139,12 +152,36 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     role: 'TATA_USAHA',
     username: 'nastiti.ken',
     name: 'Nastiti Ken Utami',
-    nip: '199008242015032004',
-    email: 'nastiti.ken@bopkri.sch.id',
-    phone: '081328456789',
+    nip: '199011242015032002',
+    ktpNumber: '3471032411900003',
+    nuptk: '4356768670210043',
+    email: 'nastiti.ken@gmail.com',
+    phone: '085797127550',
     employmentStatus: 'PTY',
+    bankName: 'Mandiri',
+    accountNumber: '1692837461',
+    accountHolder: 'Nastiti Ken Utami',
     positionTitle: 'Kasir & Staf Tata Usaha',
+    teacherId: 'tch-03',
     password: 'kasir123',
+  },
+  {
+    id: 'usr-reg-1793244380827',
+    role: 'GURU',
+    username: 'wilfridusputut',
+    name: 'Wilfridus Putut, S.Pd',
+    nip: '198809152014011005',
+    ktpNumber: '3471041509880001',
+    nuptk: '5647766668200014',
+    email: 'gojek.putut@gmail.com',
+    phone: '085725799771',
+    employmentStatus: 'GTY',
+    bankName: 'Mandiri',
+    accountNumber: '1370023849182',
+    accountHolder: 'Wilfridus Putut',
+    positionTitle: 'Guru Kelas 2.1',
+    teacherId: 'tch-06',
+    password: 'kelas2.1',
   },
 ];
 
@@ -732,13 +769,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Real-time subscription to cloud registered users across all devices
     const unsubscribeUsers = subscribeUsersFromFirestore((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
+        // Direct authoritative set from Cloud Firestore so no stale or deleted users persist across devices
+        setRegisteredUsers(cloudUsers);
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(cloudUsers));
+
         // Sync currently logged-in user in real-time
         setCurrentUser((curr) => {
           if (!curr) return null;
           const match = cloudUsers.find(
             (cu) =>
               cu.id === curr.id ||
-              (cu.username && curr.username && cu.username.toLowerCase() === curr.username.toLowerCase())
+              (cu.username && curr.username && cu.username.toLowerCase() === curr.username.toLowerCase()) ||
+              (cu.teacherId && curr.teacherId && cu.teacherId === curr.teacherId)
           );
           if (match) {
             const updated = { ...curr, ...match };
@@ -746,24 +788,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             return updated;
           }
           return curr;
-        });
-
-        setRegisteredUsers((prev) => {
-          const merged = [...prev];
-          for (const cu of cloudUsers) {
-            const idx = merged.findIndex(
-              (u) =>
-                u.id === cu.id ||
-                (u.username && cu.username && u.username.toLowerCase() === cu.username.toLowerCase()) ||
-                (u.email && cu.email && u.email.toLowerCase() === cu.email.toLowerCase())
-            );
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...cu };
-            } else {
-              merged.push(cu);
-            }
-          }
-          return merged;
         });
       }
     });
@@ -807,6 +831,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribeTeachers = subscribeTeachersFromFirestore((cloudTeachers) => {
       if (cloudTeachers && cloudTeachers.length > 0) {
         setTeachers(cloudTeachers);
+        localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(cloudTeachers));
+
+        // Keep logged-in user in sync with teacher record changes across devices
+        setCurrentUser((curr) => {
+          if (!curr) return null;
+          const matchT = cloudTeachers.find(
+            (t) =>
+              (curr.teacherId && t.id === curr.teacherId) ||
+              (curr.username && t.username && curr.username.toLowerCase() === t.username.toLowerCase()) ||
+              (curr.nip && t.nip && curr.nip === t.nip) ||
+              (curr.email && t.email && curr.email.toLowerCase() === t.email.toLowerCase())
+          );
+          if (matchT) {
+            const updated: AuthUser = {
+              ...curr,
+              name: matchT.name || curr.name,
+              nip: matchT.nip || curr.nip,
+              nuptk: matchT.nuptk || curr.nuptk,
+              ktpNumber: matchT.ktpNumber || curr.ktpNumber,
+              email: matchT.email || curr.email,
+              phone: matchT.phone || curr.phone,
+              bankName: matchT.bankName || curr.bankName,
+              accountNumber: matchT.accountNumber || curr.accountNumber,
+              accountHolder: matchT.accountHolder || curr.accountHolder,
+              positionTitle: matchT.role || curr.positionTitle,
+              employmentStatus: matchT.status || curr.employmentStatus,
+            };
+            localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updated));
+            return updated;
+          }
+          return curr;
+        });
       }
     });
 
@@ -814,6 +870,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribeBillTypes = subscribeBillTypesFromFirestore((cloudBillTypes) => {
       if (cloudBillTypes && cloudBillTypes.length > 0) {
         setBillTypes(cloudBillTypes);
+        localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(cloudBillTypes));
       }
     });
 
@@ -1218,13 +1275,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // If updating currently logged in user
-      if (currentUser && currentUser.id === user.id) {
-        setCurrentUser(user);
-        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(user));
+      if (currentUser && (currentUser.id === user.id || currentUser.username.toLowerCase() === user.username.toLowerCase())) {
+        const updatedCurr = { ...currentUser, ...user };
+        setCurrentUser(updatedCurr);
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedCurr));
       }
 
-      showToast(`Data user "${user.name}" (@${user.username}) berhasil diperbarui di Cloud Firestore!`, 'success');
-      return { success: true, message: 'Data pengguna berhasil diperbarui di Cloud Firestore.' };
+      // BIDIRECTIONAL SYNC: Synchronize to teachers collection in Cloud Firestore if matching teacher exists
+      setTeachers((prevTeachers) => {
+        let matchedTeacher: Teacher | undefined;
+        const nextTeachers = prevTeachers.map((t) => {
+          const isMatch =
+            (user.teacherId && t.id === user.teacherId) ||
+            (user.username && t.username && user.username.toLowerCase() === t.username.toLowerCase()) ||
+            (user.nip && t.nip && user.nip === t.nip) ||
+            (user.email && t.email && user.email.toLowerCase() === t.email.toLowerCase()) ||
+            (user.name && t.name && (user.name.toLowerCase().includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(user.name.toLowerCase())));
+
+          if (isMatch) {
+            matchedTeacher = {
+              ...t,
+              name: user.name || t.name,
+              nip: user.nip || t.nip,
+              nuptk: user.nuptk || t.nuptk,
+              ktpNumber: user.ktpNumber || t.ktpNumber,
+              email: user.email || t.email,
+              phone: user.phone || t.phone,
+              role: user.positionTitle || t.role,
+              status: (user.employmentStatus as EmploymentStatus) || t.status,
+              bankName: user.bankName || t.bankName,
+              accountNumber: user.accountNumber || t.accountNumber,
+              accountHolder: user.accountHolder || user.name || t.accountHolder,
+              username: user.username || t.username,
+              password: user.password || t.password,
+            };
+            return matchedTeacher;
+          }
+          return t;
+        });
+
+        if (matchedTeacher) {
+          saveTeacherToFirestore(matchedTeacher).catch(() => {});
+          localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(nextTeachers));
+
+          // Also update payrolls if teacher info changed
+          setPayrolls((prevPay) =>
+            prevPay.map((p) => {
+              if (p.teacherId === matchedTeacher!.id) {
+                const updatedPay = {
+                  ...p,
+                  teacherName: matchedTeacher!.name,
+                  teacherNip: matchedTeacher!.nip,
+                  teacherRole: matchedTeacher!.role,
+                  teacherPhone: matchedTeacher!.phone,
+                  teacherEmail: matchedTeacher!.email,
+                  bankName: matchedTeacher!.bankName,
+                  accountNumber: matchedTeacher!.accountNumber,
+                };
+                savePayrollToFirestore(updatedPay).catch(() => {});
+                return updatedPay;
+              }
+              return p;
+            })
+          );
+        }
+        return nextTeachers;
+      });
+
+      showToast(`Data user "${user.name}" (@${user.username}) berhasil diperbarui dan disinkronkan ke Cloud Firestore!`, 'success');
+      return { success: true, message: 'Data pengguna dan guru berhasil diperbarui di Cloud Firestore.' };
     } catch (err) {
       console.error('adminUpdateUser error:', err);
       return { success: false, message: 'Gagal memperbarui data pengguna ke Cloud Firestore.' };
@@ -1928,30 +2047,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Teacher & Payroll Management
   const addTeacher = (data: Omit<Teacher, 'id' | 'createdAt'>): Teacher => {
+    const newTeacherId = `tch-${Date.now()}`;
     const newTeacher: Teacher = {
       ...data,
-      id: `tch-${Date.now()}`,
+      id: newTeacherId,
       createdAt: new Date().toISOString(),
     };
     setTeachers((prev) => [newTeacher, ...prev]);
     saveTeacherToFirestore(newTeacher).catch(() => {});
+
+    // Automatically create corresponding registered user in Cloud Firestore if credentials or username present
+    const cleanUname = (data.username || (data.nip ? `guru.${data.nip}` : `guru.${newTeacherId}`)).toLowerCase();
+    const newUser: AuthUser = {
+      id: `usr-${newTeacherId}`,
+      role: data.staffType === 'TENAGA_KEPENDIDIKAN' ? 'STAFF' : 'GURU',
+      username: cleanUname,
+      name: data.name,
+      nip: data.nip || '',
+      nuptk: data.nuptk || '',
+      ktpNumber: data.ktpNumber || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      employmentStatus: data.status || 'GTY',
+      bankName: data.bankName || 'BPD DIY',
+      accountNumber: data.accountNumber || '',
+      accountHolder: data.accountHolder || data.name,
+      teacherId: newTeacherId,
+      positionTitle: data.role || (data.staffType === 'TENAGA_KEPENDIDIKAN' ? 'Staf Kependidikan' : 'Guru Pendidik'),
+      password: data.password || '123',
+    };
+
+    setRegisteredUsers((prev) => {
+      const exists = prev.some((u) => u.username.toLowerCase() === cleanUname || u.teacherId === newTeacherId);
+      if (!exists) {
+        const next = [newUser, ...prev];
+        saveUserToFirestore(newUser).catch(() => {});
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+        return next;
+      }
+      return prev;
+    });
+
     return newTeacher;
   };
 
   const updateTeacher = (id: string, data: Partial<Teacher>) => {
     let updatedTeacher: Teacher | undefined;
-    setTeachers((prev) =>
-      prev.map((t) => {
+    setTeachers((prev) => {
+      const nextTeachers = prev.map((t) => {
         if (t.id === id) {
           updatedTeacher = { ...t, ...data };
           return updatedTeacher;
         }
         return t;
-      })
-    );
+      });
+      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(nextTeachers));
+      return nextTeachers;
+    });
+
     if (updatedTeacher) {
       saveTeacherToFirestore(updatedTeacher).catch(() => {});
+      const t = updatedTeacher;
+
+      // BIDIRECTIONAL SYNC: Synchronize to registered_users in Cloud Firestore!
+      setRegisteredUsers((prevUsers) => {
+        let matchedUser: AuthUser | undefined;
+        const nextUsers = prevUsers.map((u) => {
+          const isMatch =
+            (u.teacherId && u.teacherId === t.id) ||
+            (u.username && t.username && u.username.toLowerCase() === t.username.toLowerCase()) ||
+            (u.nip && t.nip && u.nip === t.nip) ||
+            (u.email && t.email && u.email.toLowerCase() === t.email.toLowerCase()) ||
+            (u.name && t.name && (u.name.toLowerCase().includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(u.name.toLowerCase())));
+
+          if (isMatch) {
+            matchedUser = {
+              ...u,
+              name: t.name || u.name,
+              nip: t.nip !== undefined ? t.nip : u.nip,
+              nuptk: t.nuptk !== undefined ? t.nuptk : u.nuptk,
+              ktpNumber: t.ktpNumber !== undefined ? t.ktpNumber : u.ktpNumber,
+              email: t.email !== undefined ? t.email : u.email,
+              phone: t.phone !== undefined ? t.phone : u.phone,
+              positionTitle: t.role || u.positionTitle,
+              employmentStatus: t.status || u.employmentStatus,
+              bankName: t.bankName || u.bankName,
+              accountNumber: t.accountNumber || u.accountNumber,
+              accountHolder: t.accountHolder || u.accountHolder,
+              teacherId: t.id,
+              username: t.username || u.username,
+              password: t.password || u.password,
+            };
+            return matchedUser;
+          }
+          return u;
+        });
+
+        if (matchedUser) {
+          saveUserToFirestore(matchedUser).catch(() => {});
+          localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(nextUsers));
+
+          // Also update currentUser if it is the currently logged-in user
+          setCurrentUser((curr) => {
+            if (
+              curr &&
+              (curr.id === matchedUser!.id ||
+                curr.username.toLowerCase() === matchedUser!.username.toLowerCase() ||
+                (curr.teacherId && curr.teacherId === t.id))
+            ) {
+              const updatedCurr = { ...curr, ...matchedUser };
+              localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedCurr));
+              return updatedCurr;
+            }
+            return curr;
+          });
+        }
+        return nextUsers;
+      });
     }
+
     // Sync teacher details into payroll records so slips reflect updated name & info
     setPayrolls((prev) =>
       prev.map((p) => {

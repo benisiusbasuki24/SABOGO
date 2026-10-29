@@ -841,15 +841,17 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({ teacher, onClose, onSav
   const [isActive, setIsActive] = useState<boolean>(teacher?.isActive !== false);
   const [username, setUsername] = useState(teacher?.username || '');
   const [password, setPassword] = useState(teacher?.password || '123');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!name.trim()) {
-      alert('Nama lengkap wajib diisi');
+      setFormError('Nama lengkap wajib diisi.');
       return;
     }
     if (!role.trim()) {
-      alert('Jabatan/Tugas wajib diisi');
+      setFormError('Jabatan/Tugas wajib diisi.');
       return;
     }
 
@@ -905,6 +907,13 @@ const StaffFormModal: React.FC<StaffFormModalProps> = ({ teacher, onClose, onSav
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {formError && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+            <span>{formError}</span>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 px-6 bg-white gap-4 text-xs font-semibold overflow-x-auto">
