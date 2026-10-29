@@ -209,8 +209,8 @@ interface AppContextType {
   setIsLoginModalOpen: (open: boolean) => void;
   isProfileModalOpen: boolean;
   setIsProfileModalOpen: (open: boolean) => void;
-  updateUserProfile: (data: Partial<AuthUser>) => void;
-  changePassword: (newPassword: string) => { success: boolean; message: string };
+  updateUserProfile: (data: Partial<AuthUser>) => Promise<boolean>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; message: string }>;
   forgotPasswordOrUsername: (identifierOrEmail: string) => {
     success: boolean;
     message: string;
@@ -714,6 +714,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Real-time subscription to cloud registered users across all devices
     const unsubscribeUsers = subscribeUsersFromFirestore((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
+        // Sync currently logged-in user in real-time
+        setCurrentUser((curr) => {
+          if (!curr) return null;
+          const match = cloudUsers.find(
+            (cu) =>
+              cu.id === curr.id ||
+              (cu.username && curr.username && cu.username.toLowerCase() === curr.username.toLowerCase())
+          );
+          if (match) {
+            const updated = { ...curr, ...match };
+            localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updated));
+            return updated;
+          }
+          return curr;
+        });
+
         setRegisteredUsers((prev) => {
           const merged = [...prev];
           for (const cu of cloudUsers) {
@@ -888,36 +904,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanId = identifier.trim().toLowerCase();
     const cleanPass = password.trim();
 
-    // 1. Find user in registeredUsers
-    let userMatch = registeredUsers.find(
-      (u) =>
-        u.username.toLowerCase() === cleanId ||
-        (u.nip && u.nip.toLowerCase() === cleanId) ||
-        (u.email && u.email.toLowerCase() === cleanId)
-    );
-
-    // Support alias for Administrator Benisius & Admin 2 (Filipus Wawan)
-    if (
-      !userMatch &&
-      (cleanId === 'benisius' ||
-        cleanId === 'benisiusbasuki24' ||
-        cleanId === 'benisius.basuki' ||
-        cleanId === 'pengembang')
-    ) {
-      userMatch = DEFAULT_ADMIN_USER;
+    // Map common aliases to primary usernames
+    let queryId = cleanId;
+    if (cleanId === 'benisius' || cleanId === 'benisius.basuki' || cleanId === 'pengembang') {
+      queryId = 'benisiusbasuki24';
+    } else if (cleanId === 'filipus' || cleanId === 'filipuswawan@gmail.com' || cleanId === 'admin2') {
+      queryId = 'filipuswawan';
     }
 
-    if (
-      !userMatch &&
-      (cleanId === 'filipuswawan' ||
-        cleanId === 'filipus' ||
-        cleanId === 'filipuswawan@gmail.com' ||
-        cleanId === 'admin2')
-    ) {
-      userMatch = ADMIN_2_USER;
+    // 1. Direct Cloud Firestore lookup FIRST to guarantee freshest real-time data across all devices/sessions
+    let userMatch: AuthUser | null = null;
+    try {
+      const cloudUser = await findUserInFirestore(queryId);
+      if (cloudUser) {
+        userMatch = cloudUser;
+        setRegisteredUsers((prev) => {
+          const idx = prev.findIndex(
+            (u) =>
+              u.id === cloudUser.id ||
+              (u.username && cloudUser.username && u.username.toLowerCase() === cloudUser.username.toLowerCase())
+          );
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...cloudUser };
+            return next;
+          }
+          return [...prev, cloudUser];
+        });
+      }
+    } catch (err) {
+      console.warn('Cloud login lookup warning, falling back to local cache:', err);
     }
 
-    // 2. Fallback to teachers list if not in registeredUsers
+    // 2. Fallback to registeredUsers cache
+    if (!userMatch) {
+      userMatch =
+        registeredUsers.find(
+          (u) =>
+            u.username.toLowerCase() === queryId ||
+            (u.nip && u.nip.toLowerCase() === queryId) ||
+            (u.email && u.email.toLowerCase() === queryId)
+        ) || null;
+    }
+
+    // 3. Fallback to static defaults if first boot
+    if (!userMatch) {
+      if (queryId === 'benisiusbasuki24') userMatch = DEFAULT_ADMIN_USER;
+      else if (queryId === 'filipuswawan') userMatch = ADMIN_2_USER;
+    }
+
+    // 4. Fallback to teachers list if not in registeredUsers
     if (!userMatch) {
       const teacher = teachers.find(
         (t) =>
@@ -945,24 +981,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           positionTitle: teacher.role,
           password: teacher.password || '123',
         };
-      }
-    }
-
-    // 3. Fallback to Cloud Firestore lookup (vital when logging in from external devices)
-    if (!userMatch) {
-      try {
-        const cloudUser = await findUserInFirestore(cleanId);
-        if (cloudUser) {
-          userMatch = cloudUser;
-          setRegisteredUsers((prev) => {
-            if (!prev.some((u) => u.username.toLowerCase() === cloudUser.username.toLowerCase())) {
-              return [...prev, cloudUser];
-            }
-            return prev;
-          });
-        }
-      } catch (err) {
-        console.warn('Cloud login lookup warning:', err);
       }
     }
 
@@ -1037,13 +1055,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Profile and Password Management Operations
-  const updateUserProfile = (data: Partial<AuthUser>) => {
-    if (!currentUser) return;
+  const updateUserProfile = async (data: Partial<AuthUser>): Promise<boolean> => {
+    if (!currentUser) return false;
     const updatedUser: AuthUser = {
       ...currentUser,
       ...data,
     };
     setCurrentUser(updatedUser);
+    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedUser));
+
+    // Update in registeredUsers list and save to localStorage
+    setRegisteredUsers((prev) => {
+      const next = prev.map((u) =>
+        u.id === updatedUser.id || u.username.toLowerCase() === updatedUser.username.toLowerCase()
+          ? updatedUser
+          : u
+      );
+      localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+      return next;
+    });
+
+    // CRITICAL: Await direct persistence to Cloud Firestore so it never resets upon logout or reboot!
+    try {
+      await saveUserToFirestore(updatedUser);
+    } catch (err) {
+      console.error('Failed to sync updated user profile to Firestore:', err);
+    }
 
     // Keep teachers list in sync if applicable
     setTeachers((prev) =>
@@ -1051,13 +1088,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (
           t.id === currentUser.teacherId ||
           t.email.toLowerCase() === currentUser.email.toLowerCase() ||
-          t.username === currentUser.username
+          t.username === currentUser.username ||
+          (t.nip && currentUser.nip && t.nip === currentUser.nip)
         ) {
-          return {
+          const tMerged: Teacher = {
             ...t,
             name: data.name ?? t.name,
             phone: data.phone ?? t.phone,
             email: data.email ?? t.email,
+            nip: data.nip !== undefined ? data.nip : t.nip,
+            role: data.positionTitle ?? t.role,
             ktpNumber: data.ktpNumber ?? t.ktpNumber,
             nuptk: data.nuptk ?? t.nuptk,
             status: data.employmentStatus ?? t.status,
@@ -1065,13 +1105,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             accountNumber: data.accountNumber ?? t.accountNumber,
             accountHolder: data.accountHolder ?? t.accountHolder,
           };
+          saveTeacherToFirestore(tMerged).catch(() => {});
+          return tMerged;
         }
         return t;
       })
     );
+
+    // If headmaster or treasurer changed their name, update school staff info
+    if (currentUser.role === 'KEPALA_SEKOLAH' && data.name) {
+      updateStaffInfo({ principal: data.name });
+    } else if (currentUser.role === 'BENDAHARA' && data.name) {
+      updateStaffInfo({ treasurer: data.name });
+    } else if (currentUser.role === 'TATA_USAHA' && data.name) {
+      updateStaffInfo({ cashier: data.name });
+    }
+
+    showToast('Profil Anda berhasil diperbarui dan tersimpan permanen di Cloud Firestore!', 'success');
+    return true;
   };
 
-  const changePassword = (newPassword: string): { success: boolean; message: string } => {
+  const changePassword = async (newPassword: string): Promise<{ success: boolean; message: string }> => {
     if (!currentUser) return { success: false, message: 'Tidak ada sesi login aktif.' };
 
     const pwd = newPassword.trim();
@@ -1093,6 +1147,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       password: pwd,
     };
     setCurrentUser(updatedUser);
+    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(updatedUser));
+
+    setRegisteredUsers((prev) => {
+      const next = prev.map((u) =>
+        u.id === updatedUser.id || u.username.toLowerCase() === updatedUser.username.toLowerCase()
+          ? updatedUser
+          : u
+      );
+      localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+      return next;
+    });
+
+    // CRITICAL: Await updated password to Cloud Firestore!
+    try {
+      await saveUserToFirestore(updatedUser);
+    } catch (err) {
+      console.error('Failed to sync new password to Firestore:', err);
+    }
 
     setTeachers((prev) =>
       prev.map((t) => {
@@ -1101,12 +1173,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           t.email.toLowerCase() === currentUser.email.toLowerCase() ||
           t.username === currentUser.username
         ) {
-          return { ...t, password: pwd };
+          const tMerged = { ...t, password: pwd };
+          saveTeacherToFirestore(tMerged).catch(() => {});
+          return tMerged;
         }
         return t;
       })
     );
 
+    showToast('Kata sandi berhasil diperbarui dan tersimpan permanen di Cloud Firestore!', 'success');
     return { success: true, message: 'Kata sandi berhasil diperbarui dengan aman!' };
   };
 

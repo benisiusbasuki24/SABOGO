@@ -43,6 +43,7 @@ export const LoginPage: React.FC = () => {
   const [regNip, setRegNip] = useState('');
   const [regStudentName, setRegStudentName] = useState('');
   const [regStudentNis, setRegStudentNis] = useState('');
+  const [regStudentGrade, setRegStudentGrade] = useState('Kelas 1A');
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,8 +98,9 @@ export const LoginPage: React.FC = () => {
         email: regEmail.trim(),
         phone: regPhone.trim(),
         nip: regNip.trim() || undefined,
-        studentName: regStudentName.trim() || undefined,
-        studentNis: regStudentNis.trim() || undefined,
+        studentName: regRole === 'ORANG_TUA' ? regStudentName.trim() || undefined : undefined,
+        studentNis: regRole === 'ORANG_TUA' ? regStudentNis.trim() || undefined : undefined,
+        studentGrade: regRole === 'ORANG_TUA' ? regStudentGrade.trim() || undefined : undefined,
       });
 
       if (res.success) {
@@ -454,11 +456,34 @@ export const LoginPage: React.FC = () => {
                         className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
                       />
                     </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                        Kelas Siswa:
+                      </label>
+                      <select
+                        value={regStudentGrade}
+                        onChange={(e) => setRegStudentGrade(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-semibold"
+                      >
+                        <option value="Kelas 1A">Kelas 1A</option>
+                        <option value="Kelas 1B">Kelas 1B</option>
+                        <option value="Kelas 2A">Kelas 2A</option>
+                        <option value="Kelas 2B">Kelas 2B</option>
+                        <option value="Kelas 3A">Kelas 3A</option>
+                        <option value="Kelas 3B">Kelas 3B</option>
+                        <option value="Kelas 4A">Kelas 4A</option>
+                        <option value="Kelas 4B">Kelas 4B</option>
+                        <option value="Kelas 5A">Kelas 5A</option>
+                        <option value="Kelas 5B">Kelas 5B</option>
+                        <option value="Kelas 6A">Kelas 6A</option>
+                        <option value="Kelas 6B">Kelas 6B</option>
+                      </select>
+                    </div>
                   </div>
                 )}
 
-                {/* Conditional Fields: If Guru / Staff */}
-                {(regRole === 'GURU' || regRole === 'STAFF') && (
+                {/* Conditional Fields: If Guru / Staff / Kepsek / Bendahara / TU */}
+                {regRole !== 'ORANG_TUA' && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       NIP / NUPTK / Posisi Jabatan (Opsional)

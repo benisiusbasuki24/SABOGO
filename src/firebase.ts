@@ -88,6 +88,21 @@ export function subscribeCollection<T extends { id: string }>(
   }
 }
 
+// Helper to recursively remove undefined properties because Firestore rejects undefined values
+export function cleanFirestoreData<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+        cleaned[key] = cleanFirestoreData(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+  }
+  return cleaned;
+}
+
 // Generic helper to save or merge a document in Firestore
 export async function saveDocument<T extends { id: string }>(
   collectionName: string,
@@ -95,14 +110,11 @@ export async function saveDocument<T extends { id: string }>(
 ): Promise<boolean> {
   try {
     const docRef = doc(db, collectionName, item.id);
-    await setDoc(
-      docRef,
-      {
-        ...item,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    const sanitized = cleanFirestoreData({
+      ...item,
+      updatedAt: new Date().toISOString(),
+    });
+    await setDoc(docRef, sanitized, { merge: true });
     return true;
   } catch (err) {
     console.error(`Failed to save to ${collectionName} [${item.id}]:`, err);
@@ -281,8 +293,17 @@ export async function findUserInFirestore(identifier: string): Promise<AuthUser 
 
 export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<void> {
   try {
-    const promises = users.map((u) => saveUserToFirestore(u));
-    await Promise.all(promises);
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
+    const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
+    const existingUsernames = new Set(
+      querySnapshot.docs.map((d) => ((d.data() as AuthUser).username || '').toLowerCase())
+    );
+    for (const u of users) {
+      // ONLY seed if the user ID and username do not already exist in Cloud Firestore
+      if (!existingIds.has(u.id) && !existingUsernames.has(u.username.toLowerCase())) {
+        await saveUserToFirestore(u);
+      }
+    }
   } catch (err) {
     console.warn('Error seeding users to Firestore:', err);
   }
