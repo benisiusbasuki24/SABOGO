@@ -12,11 +12,38 @@ import {
 import { INITIAL_INVENTORY_ASSETS } from '../data/seedInventory';
 import { INITIAL_SPMB_REGISTRATIONS } from '../data/seedSPMB';
 import {
+  saveStudentToFirestore,
+  deleteStudentFromFirestore,
+  subscribeStudentsFromFirestore,
+  saveBillToFirestore,
+  deleteBillFromFirestore,
+  subscribeBillsFromFirestore,
+  saveTransactionToFirestore,
+  deleteTransactionFromFirestore,
+  subscribeTransactionsFromFirestore,
+  savePayrollToFirestore,
+  deletePayrollFromFirestore,
+  subscribePayrollsFromFirestore,
+  saveInventoryToFirestore,
+  deleteInventoryFromFirestore,
+  subscribeInventoryFromFirestore,
+  saveTeachingDocToFirestore,
+  deleteTeachingDocFromFirestore,
+  subscribeTeachingDocsFromFirestore,
   saveSpmbToFirestore,
-  fetchSpmbFromFirestore,
+  deleteSpmbFromFirestore,
   subscribeSpmbFromFirestore,
   updateSpmbStatusInFirestore,
+  saveTeacherToFirestore,
+  deleteTeacherFromFirestore,
+  subscribeTeachersFromFirestore,
+  saveBillTypeToFirestore,
+  deleteBillTypeFromFirestore,
+  subscribeBillTypesFromFirestore,
+  saveSchoolInfoToFirestore,
+  subscribeSchoolInfoFromFirestore,
   saveUserToFirestore,
+  deleteUserFromFirestore,
   fetchUsersFromFirestore,
   subscribeUsersFromFirestore,
   findUserInFirestore,
@@ -322,6 +349,21 @@ const STORAGE_KEYS = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // One-time purge of old sample mock data from browser localStorage to ensure clean Cloud Firestore sync
+  if (typeof window !== 'undefined') {
+    const MOCK_PURGED_FLAG = 'SIBOGO_V4_SAMPLE_DATA_PURGED';
+    if (!localStorage.getItem(MOCK_PURGED_FLAG)) {
+      localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+      localStorage.removeItem(STORAGE_KEYS.BILLS);
+      localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEYS.PAYROLLS);
+      localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
+      localStorage.removeItem(STORAGE_KEYS.ASSETS);
+      localStorage.removeItem(STORAGE_KEYS.SPMB);
+      localStorage.setItem(MOCK_PURGED_FLAG, 'true');
+    }
+  }
+
   const [staffInfo, setStaffInfo] = useState<SchoolStaffInfo>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.STAFF);
     if (!saved) return INITIAL_STAFF_INFO;
@@ -664,9 +706,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
-  // Initial Firestore boot sync for default administrators and cloud data
+  // Initial Firestore boot sync and comprehensive multi-device real-time subscriptions
   useEffect(() => {
-    // 1. Seed all initial standard users into Firestore
+    // 1. Seed standard initial users into Firestore
     seedInitialUsersToFirestore(INITIAL_REGISTERED_USERS).catch(() => {});
 
     // 2. Real-time subscription to cloud registered users across all devices
@@ -692,29 +734,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    // 3. Real-time subscription to SPMB registrations across all devices
+    // 3. Real-time subscription to Students across all devices
+    const unsubscribeStudents = subscribeStudentsFromFirestore((cloudStudents) => {
+      setStudents(cloudStudents);
+    });
+
+    // 4. Real-time subscription to Bills across all devices
+    const unsubscribeBills = subscribeBillsFromFirestore((cloudBills) => {
+      setBills(cloudBills);
+    });
+
+    // 5. Real-time subscription to Transactions (Kwitansi) across all devices
+    const unsubscribeTransactions = subscribeTransactionsFromFirestore((cloudTx) => {
+      setTransactions(cloudTx);
+    });
+
+    // 6. Real-time subscription to Payrolls across all devices
+    const unsubscribePayrolls = subscribePayrollsFromFirestore((cloudPayrolls) => {
+      setPayrolls(cloudPayrolls);
+    });
+
+    // 7. Real-time subscription to Inventory Assets across all devices
+    const unsubscribeInventory = subscribeInventoryFromFirestore((cloudAssets) => {
+      setAssets(cloudAssets);
+    });
+
+    // 8. Real-time subscription to Teaching Docs across all devices
+    const unsubscribeTeachingDocs = subscribeTeachingDocsFromFirestore((cloudDocs) => {
+      setTeachingDocs(cloudDocs);
+    });
+
+    // 9. Real-time subscription to SPMB registrations across all devices
     const unsubscribeSpmb = subscribeSpmbFromFirestore((cloudSpmb) => {
-      if (cloudSpmb && cloudSpmb.length > 0) {
-        setSpmbRegistrations((prev) => {
-          const merged = [...prev];
-          for (const cs of cloudSpmb) {
-            const idx = merged.findIndex(
-              (r) => r.id === cs.id || r.registrationNumber === cs.registrationNumber
-            );
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...cs };
-            } else {
-              merged.push(cs);
-            }
-          }
-          return merged;
-        });
+      setSpmbRegistrations(cloudSpmb);
+    });
+
+    // 10. Real-time subscription to Teachers & Staff master
+    const unsubscribeTeachers = subscribeTeachersFromFirestore((cloudTeachers) => {
+      if (cloudTeachers && cloudTeachers.length > 0) {
+        setTeachers(cloudTeachers);
+      }
+    });
+
+    // 11. Real-time subscription to Bill Types
+    const unsubscribeBillTypes = subscribeBillTypesFromFirestore((cloudBillTypes) => {
+      if (cloudBillTypes && cloudBillTypes.length > 0) {
+        setBillTypes(cloudBillTypes);
+      }
+    });
+
+    // 12. Real-time subscription to School Info
+    const unsubscribeSchoolInfo = subscribeSchoolInfoFromFirestore((cloudInfo) => {
+      if (cloudInfo) {
+        setStaffInfo((prev) => ({ ...prev, ...cloudInfo }));
       }
     });
 
     return () => {
       unsubscribeUsers();
+      unsubscribeStudents();
+      unsubscribeBills();
+      unsubscribeTransactions();
+      unsubscribePayrolls();
+      unsubscribeInventory();
+      unsubscribeTeachingDocs();
       unsubscribeSpmb();
+      unsubscribeTeachers();
+      unsubscribeBillTypes();
+      unsubscribeSchoolInfo();
     };
   }, []);
 
@@ -1148,6 +1235,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'MENUNGGU_VERIFIKASI',
     };
     setTeachingDocs((prev) => [newDoc, ...prev]);
+    saveTeachingDocToFirestore(newDoc).catch((e) => console.warn('Cloud sync doc:', e));
     return newDoc;
   };
 
@@ -1157,6 +1245,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setTeachingDocs((prev) => prev.filter((d) => d.id !== id));
+    deleteTeachingDocFromFirestore(id).catch((e) => console.warn('Cloud sync doc delete:', e));
     showToast('Berkas administrasi ajar berhasil dihapus.', 'info');
   };
 
@@ -1167,6 +1256,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setTeachingDocs((prev) => prev.filter((d) => !idSet.has(d.id)));
+    ids.forEach((id) => deleteTeachingDocFromFirestore(id).catch(() => {}));
     showToast(`${ids.length} berkas administrasi ajar berhasil dihapus.`, 'info');
     return ids.length;
   };
@@ -1176,13 +1266,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     status: 'MENUNGGU_VERIFIKASI' | 'DISETUJUI' | 'PERLU_REVISI',
     adminFeedback?: string
   ) => {
+    let updated: TeachingAdminDoc | undefined;
     setTeachingDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status, adminFeedback: adminFeedback ?? d.adminFeedback } : d))
+      prev.map((d) => {
+        if (d.id === id) {
+          updated = { ...d, status, adminFeedback: adminFeedback ?? d.adminFeedback };
+          return updated;
+        }
+        return d;
+      })
     );
+    if (updated) {
+      saveTeachingDocToFirestore(updated).catch(() => {});
+    }
   };
 
   const updateStaffInfo = (info: Partial<SchoolStaffInfo>) => {
-    setStaffInfo((prev) => ({ ...prev, ...info }));
+    setStaffInfo((prev) => {
+      const updated = { ...prev, ...info };
+      saveSchoolInfoToFirestore(updated).catch(() => {});
+      return updated;
+    });
   };
 
   // Student management with cascading bill deletion
@@ -1193,18 +1297,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setStudents((prev) => [newStudent, ...prev]);
+    saveStudentToFirestore(newStudent).catch((e) => console.warn('Cloud sync student:', e));
     return newStudent;
   };
 
   const updateStudent = (id: string, data: Partial<Student>) => {
+    let updatedStudent: Student | undefined;
     setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...data } : s))
+      prev.map((s) => {
+        if (s.id === id) {
+          updatedStudent = { ...s, ...data };
+          return updatedStudent;
+        }
+        return s;
+      })
     );
+    if (updatedStudent) {
+      saveStudentToFirestore(updatedStudent).catch(() => {});
+    }
     // Sync denormalized student details in bills
     setBills((prev) =>
       prev.map((b) => {
         if (b.studentId === id) {
-          return {
+          const updatedBill = {
             ...b,
             studentName: data.name ?? b.studentName,
             studentGrade: data.grade ?? b.studentGrade,
@@ -1213,6 +1328,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             parentPhone: data.parentPhone ?? b.parentPhone,
             parentEmail: data.parentEmail ?? b.parentEmail,
           };
+          saveBillToFirestore(updatedBill).catch(() => {});
+          return updatedBill;
         }
         return b;
       })
@@ -1225,8 +1342,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setStudents((prev) => prev.filter((s) => s.id !== id));
+    deleteStudentFromFirestore(id).catch(() => {});
     if (deleteRelatedBills) {
-      setBills((prev) => prev.filter((b) => b.studentId !== id));
+      setBills((prev) => {
+        const remaining: Bill[] = [];
+        prev.forEach((b) => {
+          if (b.studentId === id) {
+            deleteBillFromFirestore(b.id).catch(() => {});
+          } else {
+            remaining.push(b);
+          }
+        });
+        return remaining;
+      });
     }
     showToast('Data siswa berhasil dihapus.', 'info');
   };
@@ -1238,8 +1366,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setStudents((prev) => prev.filter((s) => !idSet.has(s.id)));
+    ids.forEach((id) => deleteStudentFromFirestore(id).catch(() => {}));
     if (deleteRelatedBills) {
-      setBills((prev) => prev.filter((b) => !idSet.has(b.studentId)));
+      setBills((prev) => {
+        const remaining: Bill[] = [];
+        prev.forEach((b) => {
+          if (idSet.has(b.studentId)) {
+            deleteBillFromFirestore(b.id).catch(() => {});
+          } else {
+            remaining.push(b);
+          }
+        });
+        return remaining;
+      });
     }
     showToast(`${ids.length} data siswa berhasil dihapus.`, 'info');
     return ids.length;
@@ -1256,11 +1395,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       newStudentsData.forEach((sData, idx) => {
         if (!existingNisSet.has(sData.nis.trim())) {
           existingNisSet.add(sData.nis.trim());
-          addedList.push({
+          const newS: Student = {
             ...sData,
             id: `std-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
             createdAt: nowIso,
-          });
+          };
+          addedList.push(newS);
+          saveStudentToFirestore(newS).catch(() => {});
           importedCount++;
         }
       });
@@ -1278,13 +1419,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `bt-${Date.now()}`,
     };
     setBillTypes((prev) => [...prev, newType]);
+    saveBillTypeToFirestore(newType).catch(() => {});
     return newType;
   };
 
   const updateBillType = (id: string, data: Partial<BillType>) => {
+    let updatedType: BillType | undefined;
     setBillTypes((prev) =>
-      prev.map((bt) => (bt.id === id ? { ...bt, ...data } : bt))
+      prev.map((bt) => {
+        if (bt.id === id) {
+          updatedType = { ...bt, ...data };
+          return updatedType;
+        }
+        return bt;
+      })
     );
+    if (updatedType) {
+      saveBillTypeToFirestore(updatedType).catch(() => {});
+    }
   };
 
   const deleteBillType = (id: string) => {
@@ -1293,6 +1445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setBillTypes((prev) => prev.filter((bt) => bt.id !== id));
+    deleteBillTypeFromFirestore(id).catch(() => {});
     showToast('Pos tagihan berhasil dihapus.', 'info');
   };
 
@@ -1303,6 +1456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setBillTypes((prev) => prev.filter((bt) => !idSet.has(bt.id)));
+    ids.forEach((id) => deleteBillTypeFromFirestore(id).catch(() => {}));
     showToast(`${ids.length} pos tagihan berhasil dihapus.`, 'info');
     return ids.length;
   };
@@ -1316,10 +1470,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setBills((prev) => [newBill, ...prev]);
+    saveBillToFirestore(newBill).catch(() => {});
     return newBill;
   };
 
   const updateBill = (id: string, data: Partial<Bill>) => {
+    let finalUpdated: Bill | undefined;
     setBills((prev) =>
       prev.map((b) => {
         if (b.id === id) {
@@ -1333,11 +1489,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const today = new Date().toISOString().split('T')[0];
             newStatus = updated.dueDate < today ? 'MENUNGGAK' : 'BELUM_BAYAR';
           }
-          return { ...updated, status: newStatus };
+          finalUpdated = { ...updated, status: newStatus };
+          return finalUpdated;
         }
         return b;
       })
     );
+    if (finalUpdated) {
+      saveBillToFirestore(finalUpdated).catch(() => {});
+    }
   };
 
   const deleteBill = (billId: string) => {
@@ -1346,6 +1506,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setBills((prev) => prev.filter((b) => b.id !== billId));
+    deleteBillFromFirestore(billId).catch(() => {});
     showToast('Tagihan berhasil dihapus.', 'info');
   };
 
@@ -1356,6 +1517,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(billIds);
     setBills((prev) => prev.filter((b) => !idSet.has(b.id)));
+    billIds.forEach((id) => deleteBillFromFirestore(id).catch(() => {}));
     showToast(`${billIds.length} tagihan berhasil dihapus.`, 'info');
     return billIds.length;
   };
@@ -1375,13 +1537,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
 
         if (!exists) {
-          addedList.push({
+          const newB: Bill = {
             ...bData,
             id: `bill-xl-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
             paidAmount: 0,
             status: 'BELUM_BAYAR',
             createdAt: nowIso,
-          });
+          };
+          addedList.push(newB);
+          saveBillToFirestore(newB).catch(() => {});
           importedCount++;
         }
       });
@@ -1421,10 +1585,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
 
       if (!exists) {
-        // Determine nominal amount:
-        // Priority 1: If admin entered explicit customAmount > 0 in modal, use that.
-        // Priority 2: If student has individual custom fee set for SPP/Kegiatan/Ekskul, use it.
-        // Priority 3: Fallback to billType.defaultAmount.
         let studentAmount = customAmount !== undefined && customAmount > 0 ? customAmount : bt.defaultAmount;
         if (customAmount === undefined || customAmount <= 0) {
           if (bt.category === 'SPP' && student.customSppAmount && student.customSppAmount > 0) {
@@ -1446,7 +1606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ? `Pilihan ekskul: ${billExtracurriculars.join(', ')}`
             : undefined;
 
-        newBillsList.push({
+        const newBill: Bill = {
           id: `bill-${Date.now()}-${student.id}`,
           billTypeId: bt.id,
           billTypeName: bt.name,
@@ -1466,7 +1626,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           extracurriculars: billExtracurriculars,
           notes: noteText,
           createdAt: nowIso,
-        });
+        };
+
+        newBillsList.push(newBill);
+        saveBillToFirestore(newBill).catch(() => {});
         count++;
       }
     });
@@ -1506,22 +1669,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       newStatus = 'SEBAGIAN';
     }
 
+    const updatedBill: Bill = {
+      ...bill,
+      paidAmount: newPaidAmount,
+      status: newStatus,
+    };
+
     setBills((prev) =>
-      prev.map((b) =>
-        b.id === billId
-          ? {
-              ...b,
-              paidAmount: newPaidAmount,
-              status: newStatus,
-            }
-          : b
-      )
+      prev.map((b) => (b.id === billId ? updatedBill : b))
     );
+    saveBillToFirestore(updatedBill).catch(() => {});
 
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const seq = String(transactions.length + 46).padStart(4, '0');
+    const seq = String(transactions.length + 1).padStart(4, '0');
     const receiptNumber = `BOPKRI-KW/${year}/${month}/${seq}`;
 
     const newTx: PaymentTransaction = {
@@ -1555,6 +1717,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setTransactions((prev) => [newTx, ...prev]);
+    saveTransactionToFirestore(newTx).catch(() => {});
     return newTx;
   };
 
@@ -1580,11 +1743,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               const today = new Date().toISOString().split('T')[0];
               updatedStatus = b.dueDate && b.dueDate < today ? 'MENUNGGAK' : 'BELUM_BAYAR';
             }
-            return {
+            const reverted = {
               ...b,
               paidAmount: updatedPaid,
               status: updatedStatus,
             };
+            saveBillToFirestore(reverted).catch(() => {});
+            return reverted;
           }
           return b;
         })
@@ -1592,6 +1757,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+    deleteTransactionFromFirestore(id).catch(() => {});
     showToast('Transaksi pembayaran berhasil dihapus.', 'info');
   };
 
@@ -1612,18 +1778,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setTeachers((prev) => [newTeacher, ...prev]);
+    saveTeacherToFirestore(newTeacher).catch(() => {});
     return newTeacher;
   };
 
   const updateTeacher = (id: string, data: Partial<Teacher>) => {
+    let updatedTeacher: Teacher | undefined;
     setTeachers((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+      prev.map((t) => {
+        if (t.id === id) {
+          updatedTeacher = { ...t, ...data };
+          return updatedTeacher;
+        }
+        return t;
+      })
     );
+    if (updatedTeacher) {
+      saveTeacherToFirestore(updatedTeacher).catch(() => {});
+    }
     // Sync teacher details into payroll records so slips reflect updated name & info
     setPayrolls((prev) =>
       prev.map((p) => {
         if (p.teacherId === id) {
-          return {
+          const updatedPay = {
             ...p,
             teacherName: data.name ?? p.teacherName,
             teacherNip: data.nip !== undefined ? data.nip : p.teacherNip,
@@ -1633,6 +1810,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             bankName: data.bankName ?? p.bankName,
             accountNumber: data.accountNumber ?? p.accountNumber,
           };
+          savePayrollToFirestore(updatedPay).catch(() => {});
+          return updatedPay;
         }
         return p;
       })
@@ -1645,8 +1824,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setTeachers((prev) => prev.filter((t) => t.id !== id));
+    deleteTeacherFromFirestore(id).catch(() => {});
     if (deleteRelatedPayrolls) {
-      setPayrolls((prev) => prev.filter((p) => p.teacherId !== id));
+      setPayrolls((prev) => {
+        const remaining: PayrollRecord[] = [];
+        prev.forEach((p) => {
+          if (p.teacherId === id) {
+            deletePayrollFromFirestore(p.id).catch(() => {});
+          } else {
+            remaining.push(p);
+          }
+        });
+        return remaining;
+      });
     }
     showToast('Data guru/staf berhasil dihapus.', 'info');
   };
@@ -1658,8 +1848,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setTeachers((prev) => prev.filter((t) => !idSet.has(t.id)));
+    ids.forEach((id) => deleteTeacherFromFirestore(id).catch(() => {}));
     if (deleteRelatedPayrolls) {
-      setPayrolls((prev) => prev.filter((p) => !idSet.has(p.teacherId)));
+      setPayrolls((prev) => {
+        const remaining: PayrollRecord[] = [];
+        prev.forEach((p) => {
+          if (idSet.has(p.teacherId)) {
+            deletePayrollFromFirestore(p.id).catch(() => {});
+          } else {
+            remaining.push(p);
+          }
+        });
+        return remaining;
+      });
     }
     showToast(`${ids.length} data guru/staf berhasil dihapus.`, 'info');
     return ids.length;
@@ -1678,17 +1879,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             t.name.trim().toLowerCase() === tData.name.trim().toLowerCase()
         );
         if (existingIdx >= 0) {
-          updated[existingIdx] = {
+          const mergedT = {
             ...updated[existingIdx],
             ...tData,
           };
+          updated[existingIdx] = mergedT;
+          saveTeacherToFirestore(mergedT).catch(() => {});
           count++;
         } else {
-          updated.push({
+          const newT: Teacher = {
             ...tData,
             id: `tch-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
             createdAt: nowIso,
-          });
+          };
+          updated.push(newT);
+          saveTeacherToFirestore(newT).catch(() => {});
           count++;
         }
       });
@@ -1772,10 +1977,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setPayrolls((prev) => [newRecord, ...prev]);
+    savePayrollToFirestore(newRecord).catch(() => {});
     return newRecord;
   };
 
   const updatePayrollRecord = (id: string, data: Partial<PayrollRecord>) => {
+    let finalUpdated: PayrollRecord | undefined;
     setPayrolls((prev) =>
       prev.map((p) => {
         if (p.id === id) {
@@ -1794,16 +2001,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             updated.loanDeduction +
             updated.otherDeduction;
           const netSalary = updated.baseSalary + totalAllowance - totalDeduction;
-          return {
+          finalUpdated = {
             ...updated,
             totalAllowance,
             totalDeduction,
             netSalary,
           };
+          return finalUpdated;
         }
         return p;
       })
     );
+    if (finalUpdated) {
+      savePayrollToFirestore(finalUpdated).catch(() => {});
+    }
   };
 
   const deletePayrollRecord = (id: string) => {
@@ -1812,6 +2023,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setPayrolls((prev) => prev.filter((p) => p.id !== id));
+    deletePayrollFromFirestore(id).catch(() => {});
     showToast('Slip penggajian berhasil dihapus.', 'info');
   };
 
@@ -1822,6 +2034,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setPayrolls((prev) => prev.filter((p) => !idSet.has(p.id)));
+    ids.forEach((id) => deletePayrollFromFirestore(id).catch(() => {}));
     showToast(`${ids.length} data slip penggajian berhasil dihapus.`, 'info');
     return ids.length;
   };
@@ -1829,18 +2042,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const markPayrollTransferred = (id: string, transferRef?: string) => {
     const ref = transferRef || `TRF-BOPKRI-${Date.now().toString().slice(-8)}`;
     const nowIso = new Date().toISOString();
+    let updatedPay: PayrollRecord | undefined;
     setPayrolls((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              paymentStatus: 'SUDAH_DITRANSFER',
-              paidAt: nowIso,
-              transferRef: ref,
-            }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id === id) {
+          updatedPay = {
+            ...p,
+            paymentStatus: 'SUDAH_DITRANSFER',
+            paidAt: nowIso,
+            transferRef: ref,
+          };
+          return updatedPay;
+        }
+        return p;
+      })
     );
+    if (updatedPay) {
+      savePayrollToFirestore(updatedPay).catch(() => {});
+    }
   };
 
   const openReceiptPrint = (tx: PaymentTransaction, format: 'A4' | 'STRUK' = 'A4') => {
@@ -1863,10 +2082,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setAssets((prev) => [newAsset, ...prev]);
+    saveInventoryToFirestore(newAsset).catch(() => {});
     return newAsset;
   };
 
   const updateAsset = (id: string, data: Partial<InventoryAsset>) => {
+    let finalAsset: InventoryAsset | undefined;
     setAssets((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
@@ -1874,9 +2095,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const qty = updated.quantity !== undefined ? Number(updated.quantity) : item.quantity;
         const price = updated.purchasePrice !== undefined ? Number(updated.purchasePrice) : item.purchasePrice;
         updated.totalValue = qty * price;
+        finalAsset = updated;
         return updated;
       })
     );
+    if (finalAsset) {
+      saveInventoryToFirestore(finalAsset).catch(() => {});
+    }
   };
 
   const deleteAsset = (id: string) => {
@@ -1885,6 +2110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setAssets((prev) => prev.filter((item) => item.id !== id));
+    deleteInventoryFromFirestore(id).catch(() => {});
     showToast('Aset inventaris berhasil dihapus.', 'info');
   };
 
@@ -1895,6 +2121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     setAssets((prev) => prev.filter((item) => !idSet.has(item.id)));
+    ids.forEach((id) => deleteInventoryFromFirestore(id).catch(() => {}));
     showToast(`${ids.length} aset inventaris berhasil dihapus.`, 'info');
     return ids.length;
   };
@@ -1967,6 +2194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setSpmbRegistrations((prev) => prev.filter((r) => r.id !== id));
+    deleteSpmbFromFirestore(id).catch(() => {});
     showToast('Data calon murid berhasil dihapus.', 'info');
   };
 
