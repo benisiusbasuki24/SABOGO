@@ -380,9 +380,13 @@ export const Header: React.FC = () => {
       ];
     }
 
-    return [
-      { id: 'portal-ortu', label: 'Portal Tagihan Siswa', icon: <Receipt className="w-3.5 h-3.5" /> },
-    ];
+    if (mainMenu === 'portal-ortu' && (isOrangTua || isSuperAdmin)) {
+      return [
+        { id: 'portal-ortu', label: 'Portal Tagihan Siswa', icon: <Receipt className="w-3.5 h-3.5" /> },
+      ];
+    }
+
+    return [];
   };
 
   const subNavItems = getSubNavItems();

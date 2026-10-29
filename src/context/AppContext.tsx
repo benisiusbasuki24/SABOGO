@@ -70,10 +70,13 @@ import {
   EmploymentStatus,
 } from '../types';
 
+import { generateUniqueUserCode } from '../utils/uniqueCode';
+
 export const DEFAULT_ADMIN_USER: AuthUser = {
   id: 'usr-admin-benisius',
   role: 'ADMIN',
   username: 'benisiusbasuki24',
+  uniqueCode: 'B8K4P2X9',
   name: 'Benisius Rahmat Basuki, S.Pd, Gr',
   nip: '198704242011011009',
   ktpNumber: '3301082204830001',
@@ -93,6 +96,7 @@ export const ADMIN_2_USER: AuthUser = {
   id: 'usr-admin-filipus',
   role: 'ADMIN',
   username: 'filipuswawan',
+  uniqueCode: 'F8W4S2T9',
   name: 'Filipus Wawan Prajawanto, S.T',
   nip: '198508152012011002',
   ktpNumber: '3471011508850001',
@@ -115,6 +119,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     id: 'usr-kepsek-suhari',
     role: 'KEPALA_SEKOLAH',
     username: 'suhari.irawan',
+    uniqueCode: 'S7H4I2R9',
     name: 'FX. Suhari Irawan, S.E, Gr',
     nip: '197405122002121001',
     ktpNumber: '3471011205750001',
@@ -133,6 +138,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     id: 'usr-bendahara-eni',
     role: 'BENDAHARA',
     username: 'bendahara',
+    uniqueCode: 'E8N4U2T9',
     name: 'Eni Utaminingsih, S.Pd, Gr',
     nip: '198203152008012003',
     ktpNumber: '3471021503820002',
@@ -151,6 +157,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     id: 'usr-tu-nastiti',
     role: 'TATA_USAHA',
     username: 'nastiti.ken',
+    uniqueCode: 'N8K4U2T9',
     name: 'Nastiti Ken Utami',
     nip: '199011242015032002',
     ktpNumber: '3471032411900003',
@@ -169,6 +176,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     id: 'usr-reg-1793244380827',
     role: 'GURU',
     username: 'wilfridusputut',
+    uniqueCode: 'W8P4T2S9',
     name: 'Wilfridus Putut, S.Pd',
     nip: '198809152014011005',
     ktpNumber: '3471041509880001',
@@ -218,6 +226,7 @@ export interface RegisterUserData {
   username: string;
   password: string;
   role: UserRole;
+  uniqueCode?: string;
   email: string;
   phone?: string;
   nip?: string;
@@ -620,11 +629,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    // Portal Ortu is ONLY accessible to Orang Tua and Super Admin
+    if (menu === 'portal-ortu') {
+      if (isSuperAdmin) {
+        setMainMenuState('portal-ortu');
+        setActiveTabRaw('portal-ortu');
+      } else {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('dashboard');
+      }
+      return;
+    }
+
     setMainMenuState(menu);
 
-    if (menu === 'portal-ortu') {
-      setActiveTabRaw('portal-ortu');
-    } else if (menu === 'approval') {
+    if (menu === 'approval') {
       setActiveTabRaw('approval');
     } else if (menu === 'spmb') {
       setActiveTabRaw('spmb');
@@ -769,17 +788,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Real-time subscription to cloud registered users across all devices
     const unsubscribeUsers = subscribeUsersFromFirestore((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
+        // Ensure all registered users have a unique 8-character code (kombinasi 4 angka & 4 huruf)
+        const existingCodes = cloudUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+        const sanitizedUsers = cloudUsers.map((u) => {
+          if (!u.uniqueCode) {
+            const newCode = generateUniqueUserCode(existingCodes);
+            existingCodes.push(newCode);
+            const userWithCode: AuthUser = { ...u, uniqueCode: newCode };
+            // Persist back to Firestore so it is stored permanently
+            saveUserToFirestore(userWithCode).catch((err) => console.warn('Could not auto-save uniqueCode:', err));
+            return userWithCode;
+          }
+          return u;
+        });
+
         // Direct authoritative set from Cloud Firestore so no stale or deleted users persist across devices
-        setRegisteredUsers(cloudUsers);
-        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(cloudUsers));
+        setRegisteredUsers(sanitizedUsers);
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(sanitizedUsers));
 
         // Sync currently logged-in user in real-time
         setCurrentUser((curr) => {
           if (!curr) return null;
-          const match = cloudUsers.find(
+          const match = sanitizedUsers.find(
             (cu) =>
               cu.id === curr.id ||
               (cu.username && curr.username && cu.username.toLowerCase() === curr.username.toLowerCase()) ||
+              (cu.uniqueCode && curr.uniqueCode && cu.uniqueCode.toUpperCase() === curr.uniqueCode.toUpperCase()) ||
               (cu.teacherId && curr.teacherId && cu.teacherId === curr.teacherId)
           );
           if (match) {
@@ -952,10 +986,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    const existingCodes = registeredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+    const assignedUniqueCode = data.uniqueCode || generateUniqueUserCode(existingCodes);
+
     const newUser: AuthUser = {
       id: `usr-reg-${Date.now()}`,
       role: data.role,
       username: cleanUname,
+      uniqueCode: assignedUniqueCode,
       name: data.name.trim(),
       email: data.email.trim(),
       phone: data.phone?.trim() || '',
@@ -987,7 +1025,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return {
       success: true,
-      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Data tersimpan ke Database Cloud SIBOGO dan dapat diakses dari perangkat mana pun.`,
+      message: `Pendaftaran berhasil untuk ${newUser.name} sebagai ${data.role}! Kode unik akun Anda: ${assignedUniqueCode}. Data tersimpan ke Cloud Firestore.`,
       user: newUser,
     };
   };
@@ -998,7 +1036,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     password?: string
   ): Promise<{ success: boolean; message: string; user?: AuthUser }> => {
     if (!identifier || !identifier.trim()) {
-      return { success: false, message: 'Username, NIP, atau Email wajib diisi.' };
+      return { success: false, message: 'Username, Kode Unik, NIP, atau Email wajib diisi.' };
     }
     if (!password || !password.trim()) {
       return { success: false, message: 'Kata sandi / PIN wajib diisi.' };
@@ -1045,6 +1083,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         registeredUsers.find(
           (u) =>
             u.username.toLowerCase() === queryId ||
+            (u.uniqueCode && u.uniqueCode.toLowerCase() === queryId) ||
             (u.nip && u.nip.toLowerCase() === queryId) ||
             (u.email && u.email.toLowerCase() === queryId)
         ) || null;

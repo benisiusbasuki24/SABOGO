@@ -278,6 +278,7 @@ export async function findUserInFirestore(identifier: string): Promise<AuthUser 
       const u = docSnap.data() as AuthUser;
       if (
         (u.username && u.username.toLowerCase() === clean) ||
+        (u.uniqueCode && u.uniqueCode.toLowerCase() === clean) ||
         (u.email && u.email.toLowerCase() === clean) ||
         (u.nip && u.nip.toLowerCase() === clean)
       ) {

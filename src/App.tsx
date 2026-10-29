@@ -71,7 +71,7 @@ const MainLayout: React.FC = () => {
            ============================================================== */}
         {isOrangTua ? (
           <ParentPortalView />
-        ) : mainMenu === 'portal-ortu' ? (
+        ) : (mainMenu === 'portal-ortu' && isSuperAdmin) ? (
           <ParentPortalView />
         ) : mainMenu === 'approval' ? (
           /* ==============================================================

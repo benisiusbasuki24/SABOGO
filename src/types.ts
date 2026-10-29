@@ -151,6 +151,7 @@ export interface AuthUser {
   role: UserRole;
   username: string;
   name: string; // Nama Lengkap
+  uniqueCode?: string; // Kode unik kombinasi 4 angka & 4 huruf (e.g. "B8K4P2X9")
   ktpNumber?: string; // No. KTP (16 digit)
   nuptk?: string; // NUPTK (16 digit)
   nip?: string; // NIP
