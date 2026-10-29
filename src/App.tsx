@@ -21,6 +21,7 @@ import { TeacherMySlipsView } from './components/TeacherMySlipsView';
 import { TeacherPayrollView } from './components/TeacherPayrollView';
 import { TeachingAdministrationView } from './components/TeachingAdministrationView';
 import { UserProfileModal } from './components/UserProfileModal';
+import { UserRegisterView } from './components/UserRegisterView';
 import { WhatsAppReminderView } from './components/WhatsAppReminderView';
 import { AppProvider, useApp } from './context/AppContext';
 import { BOPKRI_LOGO, handleImageError } from './assets/logo';
@@ -112,14 +113,19 @@ const MainLayout: React.FC = () => {
               </>
             )}
           </>
+        ) : mainMenu === 'user-register' ? (
+          /* ==============================================================
+             6. MENU USER REGISTER (KHUSUS SUPER ADMIN)
+             ============================================================== */
+          <UserRegisterView />
         ) : mainMenu === 'administrasi' ? (
           /* ==============================================================
-             6. MENU ADMINISTRASI MENGAJAR
+             7. MENU ADMINISTRASI MENGAJAR
              ============================================================== */
           <TeachingAdministrationView />
         ) : (
           /* ==============================================================
-             7. MENU INVENTARISASI SEKOLAH
+             8. MENU INVENTARISASI SEKOLAH
              ============================================================== */
           <InventoryView />
         )}

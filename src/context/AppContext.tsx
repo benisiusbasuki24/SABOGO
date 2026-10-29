@@ -155,7 +155,8 @@ export type MainMenuType =
   | 'inventarisasi'
   | 'approval'
   | 'portal-ortu'
-  | 'spmb';
+  | 'spmb'
+  | 'user-register';
 
 export type AppNavTab =
   | 'dashboard'
@@ -172,7 +173,8 @@ export type AppNavTab =
   | 'inventarisasi'
   | 'approval'
   | 'portal-ortu'
-  | 'spmb';
+  | 'spmb'
+  | 'user-register';
 
 export interface RegisterUserData {
   name: string;
@@ -211,6 +213,8 @@ interface AppContextType {
   setIsProfileModalOpen: (open: boolean) => void;
   updateUserProfile: (data: Partial<AuthUser>) => Promise<boolean>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; message: string }>;
+  adminUpdateUser: (user: AuthUser) => Promise<{ success: boolean; message: string }>;
+  adminDeleteUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   forgotPasswordOrUsername: (identifierOrEmail: string) => {
     success: boolean;
     message: string;
@@ -609,6 +613,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActiveTabRaw('administrasi-guru');
     } else if (menu === 'inventarisasi') {
       setActiveTabRaw('inventarisasi');
+    } else if (menu === 'user-register') {
+      if (isSuperAdmin) {
+        setActiveTabRaw('user-register');
+      } else {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('dashboard');
+      }
     }
   };
 
@@ -628,6 +639,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMainMenuState('approval');
     } else if (tab === 'spmb') {
       setMainMenuState('spmb');
+    } else if (tab === 'user-register') {
+      if (isSuperAdmin) {
+        setMainMenuState('user-register');
+      } else {
+        setMainMenuState('keuangan');
+        setActiveTabRaw('dashboard');
+      }
     } else if (['dashboard', 'kasir', 'tagihan', 'siswa', 'laporan', 'whatsapp', 'jenis-tagihan'].includes(tab)) {
       setMainMenuState('keuangan');
     } else if (['penggajian', 'my-slips', 'master-guru'].includes(tab)) {
@@ -1183,6 +1201,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast('Kata sandi berhasil diperbarui dan tersimpan permanen di Cloud Firestore!', 'success');
     return { success: true, message: 'Kata sandi berhasil diperbarui dengan aman!' };
+  };
+
+  const adminUpdateUser = async (user: AuthUser): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Hanya Super Administrator yang berhak mengubah data pengguna.' };
+    }
+
+    try {
+      await saveUserToFirestore(user);
+
+      setRegisteredUsers((prev) => {
+        const next = prev.map((u) => (u.id === user.id ? user : u));
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+        return next;
+      });
+
+      // If updating currently logged in user
+      if (currentUser && currentUser.id === user.id) {
+        setCurrentUser(user);
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(user));
+      }
+
+      showToast(`Data user "${user.name}" (@${user.username}) berhasil diperbarui di Cloud Firestore!`, 'success');
+      return { success: true, message: 'Data pengguna berhasil diperbarui di Cloud Firestore.' };
+    } catch (err) {
+      console.error('adminUpdateUser error:', err);
+      return { success: false, message: 'Gagal memperbarui data pengguna ke Cloud Firestore.' };
+    }
+  };
+
+  const adminDeleteUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      return { success: false, message: 'Hanya Super Administrator yang berhak menghapus akun pengguna.' };
+    }
+
+    const targetUser = registeredUsers.find((u) => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'Pengguna tidak ditemukan.' };
+    }
+
+    if (
+      targetUser.username.toLowerCase() === 'benisiusbasuki24' ||
+      targetUser.username.toLowerCase() === 'benisius' ||
+      (currentUser && currentUser.id === userId)
+    ) {
+      return { success: false, message: 'Akun Super Administrator Utama tidak dapat dihapus!' };
+    }
+
+    try {
+      await deleteUserFromFirestore(userId);
+
+      setRegisteredUsers((prev) => {
+        const next = prev.filter((u) => u.id !== userId);
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+        return next;
+      });
+
+      showToast(`User "${targetUser.name}" (@${targetUser.username}) berhasil dihapus dari Cloud Firestore.`, 'info');
+      return { success: true, message: 'Pengguna berhasil dihapus dari Cloud Firestore.' };
+    } catch (err) {
+      console.error('adminDeleteUser error:', err);
+      return { success: false, message: 'Gagal menghapus pengguna dari Cloud Firestore.' };
+    }
   };
 
   const forgotPasswordOrUsername = (
@@ -2372,6 +2453,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsDataPurgeModalOpen,
         updateUserProfile,
         changePassword,
+        adminUpdateUser,
+        adminDeleteUser,
         forgotPasswordOrUsername,
         mainMenu,
         setMainMenu,

@@ -297,6 +297,13 @@ export const Header: React.FC = () => {
         icon: <Receipt className="w-3.5 h-3.5" />,
         defaultTab: 'portal-ortu',
       },
+      {
+        id: 'user-register',
+        label: 'User Register',
+        subLabel: 'Pengguna Cloud',
+        icon: <Users className="w-3.5 h-3.5" />,
+        defaultTab: 'user-register',
+      },
     ];
   };
 
@@ -364,6 +371,12 @@ export const Header: React.FC = () => {
     if (mainMenu === 'spmb') {
       return [
         { id: 'spmb', label: 'Pendaftaran & Rekap Murid Baru', icon: <UserPlus className="w-3.5 h-3.5" /> },
+      ];
+    }
+
+    if (mainMenu === 'user-register') {
+      return [
+        { id: 'user-register', label: 'User Register (Cloud)', icon: <Users className="w-3.5 h-3.5" /> },
       ];
     }
 
