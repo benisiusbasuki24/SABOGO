@@ -86,7 +86,7 @@ export const UserRegisterView: React.FC = () => {
   const [editStudentId, setEditStudentId] = useState('');
   const [editStudentName, setEditStudentName] = useState('');
   const [editStudentNis, setEditStudentNis] = useState('');
-  const [editStudentGrade, setEditStudentGrade] = useState('Kelas 1A');
+  const [editStudentGrade, setEditStudentGrade] = useState('1.1');
   const [editUniqueCode, setEditUniqueCode] = useState('');
 
   // Add User Form States
@@ -100,7 +100,7 @@ export const UserRegisterView: React.FC = () => {
   const [newStudentId, setNewStudentId] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentNis, setNewStudentNis] = useState('');
-  const [newStudentGrade, setNewStudentGrade] = useState('Kelas 1A');
+  const [newStudentGrade, setNewStudentGrade] = useState('1.1');
   const [newUniqueCode, setNewUniqueCode] = useState('');
 
   // Gatekeeping: If not Super Admin, show restricted access notice
@@ -214,7 +214,7 @@ export const UserRegisterView: React.FC = () => {
     setEditStudentId(user.studentId || '');
     setEditStudentName(user.studentName || '');
     setEditStudentNis(user.studentNis || '');
-    setEditStudentGrade(user.studentGrade || 'Kelas 1A');
+    setEditStudentGrade(user.studentGrade || '1.1');
     setEditUniqueCode(user.uniqueCode || generateUniqueUserCode(registeredUsers.map((u) => u.uniqueCode)));
     setFeedbackMessage(null);
   };
@@ -770,7 +770,7 @@ export const UserRegisterView: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span>NIS: {user.studentNis || '-'}</span>
                               <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 font-bold">
-                                {user.studentGrade || 'Kelas 1A'}
+                                {user.studentGrade || '1.1'}
                               </span>
                             </div>
                           </div>
@@ -1025,7 +1025,7 @@ export const UserRegisterView: React.FC = () => {
                       setEditStudentId(s?.id || '');
                       setEditStudentName(s?.name || '');
                       setEditStudentNis(s?.nis || '');
-                      setEditStudentGrade(s?.grade || 'Kelas 1A');
+                      setEditStudentGrade(s?.grade || '1.1');
                     }}
                     required={true}
                     label="Pilih Siswa (Anak) yang Terhubung"
@@ -1332,7 +1332,7 @@ export const UserRegisterView: React.FC = () => {
                       setNewStudentId(s?.id || '');
                       setNewStudentName(s?.name || '');
                       setNewStudentNis(s?.nis || '');
-                      setNewStudentGrade(s?.grade || 'Kelas 1A');
+                      setNewStudentGrade(s?.grade || '1.1');
                       if (s?.parentName && !newName.trim()) {
                         setNewName(s.parentName);
                       }

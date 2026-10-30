@@ -1,11 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { EXTRACURRICULAR_OPTIONS, ExtracurricularName, Student } from '../types';
+import { EXTRACURRICULAR_OPTIONS, ExtracurricularName, Student, SCHOOL_GRADES, normalizeGrade } from '../types';
 import { downloadStudentTemplate, parseExcelFile } from '../utils/excelHelper';
 import { formatRupiah, normalizeWhatsAppNumber } from '../utils/formatters';
 import {
   AlertCircle,
   Check,
+  CheckCircle2,
+  CloudUpload,
+  Copy,
   CreditCard,
   Download,
   Edit,
@@ -15,6 +18,8 @@ import {
   Phone,
   Plus,
   Search,
+  ShieldCheck,
+  Sliders,
   Sparkles,
   Trash2,
   Upload,
@@ -36,15 +41,27 @@ export const StudentsView: React.FC = () => {
     currentUser,
     importStudentsFromExcel,
     bills,
+    billTypes,
+    syncAllStudentsToCloud,
+    updateStudentTariff,
+    updateClassActivityTariff,
+    updateEkskulTariffRate,
   } = useApp();
 
   const isAdmin = currentUser?.role === 'ADMIN';
+  const canEditTariff =
+    currentUser?.role === 'ADMIN' ||
+    currentUser?.role === 'BENDAHARA' ||
+    currentUser?.role === 'TATA_USAHA';
 
   const [search, setSearch] = useState<string>('');
   const [gradeFilter, setGradeFilter] = useState<string>('Semua Kelas');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
+  const [isTariffModalOpen, setIsTariffModalOpen] = useState<boolean>(false);
+  const [copiedBriva, setCopiedBriva] = useState<string | null>(null);
 
   // Excel Upload States
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
@@ -57,20 +74,28 @@ export const StudentsView: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [nis, setNis] = useState<string>('');
   const [nisn, setNisn] = useState<string>('');
-  const [grade, setGrade] = useState<string>('Kelas 1A');
+  const [grade, setGrade] = useState<string>('1.1');
   const [gender, setGender] = useState<'L' | 'P'>('L');
   const [parentName, setParentName] = useState<string>('');
   const [parentPhone, setParentPhone] = useState<string>('');
   const [parentEmail, setParentEmail] = useState<string>('');
   const [address, setAddress] = useState<string>('');
   const [vaNumber, setVaNumber] = useState<string>('');
+  const [brivaSpp, setBrivaSpp] = useState<string>('');
+  const [brivaKegiatan, setBrivaKegiatan] = useState<string>('');
+  const [brivaEkskul, setBrivaEkskul] = useState<string>('');
+  const [customerIdBri, setCustomerIdBri] = useState<string>('');
   const [status, setStatus] = useState<'AKTIF' | 'NONAKTIF'>('AKTIF');
 
-  // Extracurriculars (Max 2 choices) & Custom Fees
+  // Extracurriculars & Custom Fees
   const [extracurriculars, setExtracurriculars] = useState<ExtracurricularName[]>([]);
-  const [extracurricularFee, setExtracurricularFee] = useState<number>(250000);
+  const [extracurricularFee, setExtracurricularFee] = useState<number>(200000);
   const [customSppAmount, setCustomSppAmount] = useState<number>(350000);
   const [customActivityFee, setCustomActivityFee] = useState<number>(1200000);
+
+  // Quick Tariff Editor in modal
+  const [tariffSearch, setTariffSearch] = useState<string>('');
+  const [quickSppValues, setQuickSppValues] = useState<Record<string, number>>({});
 
   const resetForm = () => {
     setEditingId(null);

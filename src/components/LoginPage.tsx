@@ -48,7 +48,7 @@ export const LoginPage: React.FC = () => {
   const [studentSearch, setStudentSearch] = useState('');
   const [regStudentName, setRegStudentName] = useState('');
   const [regStudentNis, setRegStudentNis] = useState('');
-  const [regStudentGrade, setRegStudentGrade] = useState('Kelas 1A');
+  const [regStudentGrade, setRegStudentGrade] = useState('1.1');
   const [assignedUniqueCode] = useState(() => {
     const existing = (registeredUsers || []).map((u) => u.uniqueCode).filter(Boolean) as string[];
     return generateUniqueUserCode(existing);
@@ -516,7 +516,7 @@ export const LoginPage: React.FC = () => {
                           } else {
                             setRegStudentName('');
                             setRegStudentNis('');
-                            setRegStudentGrade('Kelas 1A');
+                            setRegStudentGrade('1.1');
                           }
                         }}
                         className="w-full px-3 py-2 text-xs bg-white border-2 border-blue-400 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 text-slate-900 font-bold shadow-xs cursor-pointer"

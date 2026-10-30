@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Bill, BillCategory, EXTRACURRICULAR_OPTIONS, ExtracurricularName, PaymentStatus } from '../types';
+import { Bill, BillCategory, EXTRACURRICULAR_OPTIONS, ExtracurricularName, PaymentStatus, normalizeGrade, SCHOOL_GRADES } from '../types';
 import { downloadBillTemplate, parseExcelFile } from '../utils/excelHelper';
 import { calculateOverdueDays, formatDateIndo, formatRupiah, normalizeWhatsAppNumber } from '../utils/formatters';
 import {
@@ -284,7 +284,7 @@ export const BillsManagementView: React.FC = () => {
     }
   };
 
-  const allGrades = ['Semua Kelas', 'Kelas 1A', 'Kelas 1B', 'Kelas 2A', 'Kelas 2B', 'Kelas 3A', 'Kelas 4A', 'Kelas 5B', 'Kelas 6A'];
+  const allGrades = ['Semua Kelas', ...SCHOOL_GRADES];
 
   const handleBillsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -319,7 +319,7 @@ export const BillsManagementView: React.FC = () => {
           const studentName = matchedStudent
             ? matchedStudent.name
             : String(row.Nama_Siswa || row['Nama Siswa'] || `Siswa NIS ${nis}`).trim();
-          const studentGrade = matchedStudent ? matchedStudent.grade : 'Kelas 1A';
+          const studentGrade = matchedStudent ? matchedStudent.grade : '1.1';
           const parentName = matchedStudent ? matchedStudent.parentName : 'Orang Tua Murid';
           const parentPhone = matchedStudent ? matchedStudent.parentPhone : '081200000000';
           const parentEmail = matchedStudent ? matchedStudent.parentEmail : '';

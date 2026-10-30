@@ -98,7 +98,7 @@ export const TeachingAdministrationView: React.FC = () => {
   const [docCategory, setDocCategory] = useState<TeachingDocCategory>('MODUL_AJAR');
   const [docAcademicYear, setDocAcademicYear] = useState(staffInfo.academicYear || '2026/2027');
   const [docSemester, setDocSemester] = useState<'Ganjil' | 'Genap'>('Ganjil');
-  const [docGrade, setDocGrade] = useState('Kelas 4A');
+  const [docGrade, setDocGrade] = useState('4.1');
   const [docSubject, setDocSubject] = useState('');
   const [docNotes, setDocNotes] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -716,16 +716,19 @@ export const TeachingAdministrationView: React.FC = () => {
                     onChange={(e) => setDocGrade(e.target.value)}
                     className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900"
                   >
-                    <option value="Kelas 1A">Kelas 1A</option>
-                    <option value="Kelas 1B">Kelas 1B</option>
-                    <option value="Kelas 2A">Kelas 2A</option>
-                    <option value="Kelas 2B">Kelas 2B</option>
-                    <option value="Kelas 3A">Kelas 3A</option>
-                    <option value="Kelas 4A">Kelas 4A</option>
-                    <option value="Kelas 5A">Kelas 5A</option>
-                    <option value="Kelas 5B">Kelas 5B</option>
-                    <option value="Kelas 6A">Kelas 6A</option>
                     <option value="Semua Kelas">Semua Kelas</option>
+                    <option value="1.1">Kelas 1.1</option>
+                    <option value="1.2">Kelas 1.2</option>
+                    <option value="2.1">Kelas 2.1</option>
+                    <option value="2.2">Kelas 2.2</option>
+                    <option value="3.1">Kelas 3.1</option>
+                    <option value="3.2">Kelas 3.2</option>
+                    <option value="4.1">Kelas 4.1</option>
+                    <option value="4.2">Kelas 4.2</option>
+                    <option value="5.1">Kelas 5.1</option>
+                    <option value="5.2">Kelas 5.2</option>
+                    <option value="6.1">Kelas 6.1</option>
+                    <option value="6.2">Kelas 6.2</option>
                   </select>
                 </div>
 

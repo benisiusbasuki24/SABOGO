@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { BillCategory, BillFrequency, BillType } from '../types';
+import { BillCategory, BillFrequency, BillType, SCHOOL_GRADES } from '../types';
 import { formatRupiah } from '../utils/formatters';
 import {
   Calendar,
@@ -11,6 +11,10 @@ import {
   Send,
   Trash2,
   X,
+  Settings,
+  Sparkles,
+  Save,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const BillTypesView: React.FC = () => {
@@ -25,14 +29,50 @@ export const BillTypesView: React.FC = () => {
     generateBillsForBillType,
     setActiveTab,
     currentUser,
+    updateClassActivityTariff,
+    updateEkskulTariffRate,
   } = useApp();
 
   const isAdmin = currentUser?.role === 'ADMIN';
+  const canEditTariffs =
+    currentUser?.role === 'ADMIN' ||
+    currentUser?.role === 'BENDAHARA' ||
+    currentUser?.role === 'TATA_USAHA';
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState<boolean>(false);
   const [selectedTypeForGeneration, setSelectedTypeForGeneration] = useState<BillType | null>(null);
   const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
+  const [isTariffModalOpen, setIsTariffModalOpen] = useState<boolean>(false);
+
+  // Class tariffs state
+  const kegiatanBillType = billTypes.find((bt) => bt.category === 'KEGIATAN' || bt.id === 'bt-kegiatan');
+  const ekskulBillType = billTypes.find((bt) => bt.category === 'EKSTRAKURIKULER' || bt.id === 'bt-ekskul');
+
+  const [classAmounts, setClassAmounts] = useState<Record<string, number>>(() => {
+    return (
+      kegiatanBillType?.classAmounts || {
+        '1.1': 1000000,
+        '1.2': 1000000,
+        '2.1': 1100000,
+        '2.2': 1100000,
+        '3.1': 1200000,
+        '3.2': 1200000,
+        '4.1': 1300000,
+        '4.2': 1300000,
+        '5.1': 1400000,
+        '5.2': 1400000,
+        '6.1': 1500000,
+        '6.2': 1500000,
+      }
+    );
+  });
+
+  const [ekskulRate, setEkskulRate] = useState<number>(() => {
+    return ekskulBillType?.ekskulFeePerItem || ekskulBillType?.defaultAmount || 200000;
+  });
+
+  const [isSavingTariff, setIsSavingTariff] = useState(false);
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -130,21 +170,7 @@ export const BillTypesView: React.FC = () => {
     setGenSuccessCount(count);
   };
 
-  const gradeOptions = [
-    'Semua Kelas',
-    'Kelas 1A',
-    'Kelas 1B',
-    'Kelas 2A',
-    'Kelas 2B',
-    'Kelas 3A',
-    'Kelas 3B',
-    'Kelas 4A',
-    'Kelas 4B',
-    'Kelas 5A',
-    'Kelas 5B',
-    'Kelas 6A',
-    'Kelas 6B',
-  ];
+  const gradeOptions = ['Semua Kelas', ...SCHOOL_GRADES];
 
   return (
     <div className="space-y-6">
@@ -193,6 +219,18 @@ export const BillTypesView: React.FC = () => {
                 </button>
               )}
             </>
+          )}
+
+          {canEditTariffs && (
+            <button
+              type="button"
+              onClick={() => setIsTariffModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold text-amber-950 bg-amber-400 hover:bg-amber-500 rounded-lg shadow-xs transition-colors shrink-0"
+              title="Atur Tarif Uang Kegiatan per Kelas & Ekstrakurikuler"
+            >
+              <Settings className="w-4 h-4 text-amber-900" />
+              <span>Atur Tarif Kelas & Ekskul</span>
+            </button>
           )}
 
           <button
@@ -587,6 +625,151 @@ export const BillTypesView: React.FC = () => {
                 </>
               )}
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL PENGATURAN TARIF UANG KEGIATAN PER KELAS & EKSKUL (KASIR, BENDAHARA, ADMIN) */}
+      {isTariffModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                    BENDAHARA & KASIR TU
+                  </span>
+                  <span className="text-xs text-slate-500 font-semibold">SD BOPKRI Gondolayu</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  Pengaturan Tarif Uang Kegiatan per Kelas & Ekstrakurikuler
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Perubahan tarif di bawah ini akan disimpan langsung ke database Cloud Firestore dan diterapkan otomatis saat penerbitan tagihan siswa.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTariffModalOpen(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Bagian 1: Tarif Uang Kegiatan Tahunan Per Kelas */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    1. Tarif Uang Kegiatan Tahunan Per Kelas (Berbeda Setiap Kelas)
+                  </h4>
+                </div>
+                <span className="text-[11px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded">
+                  Format Kelas Baru: 1.1 s/d 6.2
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Sesuai ketentuan, tarif uang kegiatan berbeda untuk tiap tingkatan kelas rombel. Anda dapat menentukan besaran nominal untuk masing-masing kelas.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                {SCHOOL_GRADES.map((g) => (
+                  <div key={g} className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Kelas {g}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={25000}
+                      value={classAmounts[g] || 1200000}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setClassAmounts((prev) => ({ ...prev, [g]: val }));
+                      }}
+                      className="w-full text-xs font-mono font-bold px-2 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-600 text-slate-900"
+                    />
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5 text-right">
+                      {formatRupiah(classAmounts[g] || 1200000)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bagian 2: Tarif Ekstrakurikuler Semesteran */}
+            <div className="space-y-3 pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    2. Tarif Ekstrakurikuler Semesteran
+                  </h4>
+                </div>
+                <span className="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  Rp 200.000 / Semester / Pilihan Ekskul
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Tarif standar ekstrakurikuler SD BOPKRI Gondolayu adalah sebesar Rp 200.000 / semester untuk 1 pilihan ekskul (jika memilih 2 ekskul maka menjadi Rp 400.000 / semester).
+              </p>
+
+              <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <label className="text-xs font-bold text-emerald-950 block mb-1">
+                    Besaran Nominal Tarif per 1 Pilihan Ekskul (Rp)
+                  </label>
+                  <p className="text-[11px] text-emerald-800">
+                    Diberlakukan untuk semua pilihan ekskul aktif (Coding, Biola, Padus, Basket, dll.)
+                  </p>
+                </div>
+                <div className="w-full sm:w-48 shrink-0">
+                  <input
+                    type="number"
+                    min={0}
+                    step={25000}
+                    value={ekskulRate}
+                    onChange={(e) => setEkskulRate(Number(e.target.value))}
+                    className="w-full text-sm font-mono font-black px-3 py-2 bg-white border-2 border-emerald-400 rounded-xl focus:ring-2 focus:ring-emerald-600 text-emerald-950 text-right shadow-xs"
+                  />
+                  <p className="text-[10px] text-emerald-700 font-bold font-mono mt-0.5 text-right">
+                    {formatRupiah(ekskulRate)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsTariffModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSavingTariff}
+                onClick={async () => {
+                  setIsSavingTariff(true);
+                  try {
+                    await updateClassActivityTariff(classAmounts);
+                    await updateEkskulTariffRate(ekskulRate);
+                    setIsTariffModalOpen(false);
+                  } catch (err) {
+                    console.error('Failed to save tariffs:', err);
+                  } finally {
+                    setIsSavingTariff(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-blue-800 hover:bg-blue-900 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{isSavingTariff ? 'Menyimpan ke Cloud...' : 'Simpan Semua Tarif ke Cloud Firestore'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

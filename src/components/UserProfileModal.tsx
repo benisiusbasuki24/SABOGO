@@ -61,7 +61,7 @@ export const UserProfileModal: React.FC = () => {
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentNis, setStudentNis] = useState('');
-  const [studentGrade, setStudentGrade] = useState('Kelas 1A');
+  const [studentGrade, setStudentGrade] = useState('1.1');
 
   // Password Form State
   const [newPassword, setNewPassword] = useState('');
@@ -106,7 +106,7 @@ export const UserProfileModal: React.FC = () => {
       setStudentId(currentUser.studentId || '');
       setStudentName(currentUser.studentName || '');
       setStudentNis(currentUser.studentNis || '');
-      setStudentGrade(currentUser.studentGrade || 'Kelas 1A');
+      setStudentGrade(currentUser.studentGrade || '1.1');
     }
   }, [currentUser, isProfileModalOpen]);
 
@@ -448,7 +448,7 @@ export const UserProfileModal: React.FC = () => {
                         <div>
                           <span className="text-[10px] text-slate-500 block">Kelas / Rombel</span>
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200 mt-0.5">
-                            {currentUser.studentGrade || 'Kelas 1A'}
+                            {currentUser.studentGrade || '1.1'}
                           </span>
                         </div>
                       </div>
@@ -652,7 +652,7 @@ export const UserProfileModal: React.FC = () => {
                           setStudentId(s?.id || '');
                           setStudentName(s?.name || '');
                           setStudentNis(s?.nis || '');
-                          setStudentGrade(s?.grade || 'Kelas 1A');
+                          setStudentGrade(s?.grade || '1.1');
                         }}
                         required={true}
                         label="Pilih Siswa (Anak Kandung / Asuh)"

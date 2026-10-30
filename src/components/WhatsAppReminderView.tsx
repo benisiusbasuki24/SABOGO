@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Bill, Student } from '../types';
+import { Bill, Student, SCHOOL_GRADES } from '../types';
 import { calculateOverdueDays, formatDateIndo, formatRupiah, normalizeWhatsAppNumber } from '../utils/formatters';
 import {
   AlertCircle,
@@ -139,7 +139,7 @@ export const WhatsAppReminderView: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const allGrades = ['Semua Kelas', 'Kelas 1A', 'Kelas 1B', 'Kelas 2B', 'Kelas 3A', 'Kelas 4A', 'Kelas 5B', 'Kelas 6A'];
+  const allGrades = ['Semua Kelas', ...SCHOOL_GRADES];
 
   return (
     <div className="space-y-6">

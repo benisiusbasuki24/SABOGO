@@ -48,6 +48,8 @@ import {
   subscribeUsersFromFirestore,
   findUserInFirestore,
   seedInitialUsersToFirestore,
+  seedInitialStudentsToFirestore,
+  syncAllStudentsToFirestore,
   testFirestoreConnection,
 } from '../firebase';
 import {
@@ -68,6 +70,8 @@ import {
   ToastNotification,
   UserRole,
   EmploymentStatus,
+  normalizeGrade,
+  SCHOOL_GRADES,
 } from '../types';
 
 import { generateUniqueUserCode } from '../utils/uniqueCode';
@@ -279,6 +283,10 @@ interface AppContextType {
   deleteStudent: (id: string, deleteRelatedBills?: boolean) => void;
   deleteStudentsBulk: (ids: string[], deleteRelatedBills?: boolean) => number;
   importStudentsFromExcel: (newStudents: Omit<Student, 'id' | 'createdAt'>[]) => number;
+  syncAllStudentsToCloud: () => Promise<{ success: boolean; count: number }>;
+  updateStudentTariff: (studentId: string, customSppAmount: number, customActivityFee?: number, extracurricularFee?: number) => Promise<boolean>;
+  updateClassActivityTariff: (classAmounts: Record<string, number>) => Promise<boolean>;
+  updateEkskulTariffRate: (ratePerSemester: number) => Promise<boolean>;
   // Bill Types
   billTypes: BillType[];
   addBillType: (data: Omit<BillType, 'id'>) => BillType;
@@ -443,16 +451,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return INITIAL_STUDENTS;
     try {
       const parsed: Student[] = JSON.parse(saved);
-      return parsed.map((s) => {
-        const seed = INITIAL_STUDENTS.find((init) => init.id === s.id || init.nis === s.nis);
-        return {
-          ...s,
-          extracurriculars: s.extracurriculars ?? seed?.extracurriculars ?? [],
-          extracurricularFee: s.extracurricularFee ?? seed?.extracurricularFee ?? 250000,
-          customSppAmount: s.customSppAmount ?? seed?.customSppAmount ?? 350000,
-          customActivityFee: s.customActivityFee ?? seed?.customActivityFee ?? 1200000,
-        };
+      // Guarantee all 212 students from INITIAL_STUDENTS are present with normalized grades & BRIVA
+      const map = new Map<string, Student>();
+      INITIAL_STUDENTS.forEach((seed) => {
+        map.set(seed.id, { ...seed, grade: normalizeGrade(seed.grade) });
       });
+      parsed.forEach((s) => {
+        const normGrade = normalizeGrade(s.grade);
+        const existing =
+          map.get(s.id) ||
+          INITIAL_STUDENTS.find(
+            (seed) =>
+              (seed.customerIdBri && s.customerIdBri && seed.customerIdBri === s.customerIdBri) ||
+              seed.name.toLowerCase() === s.name.toLowerCase() ||
+              seed.nis === s.nis
+          );
+        if (existing) {
+          map.set(existing.id, {
+            ...existing,
+            ...s,
+            grade: normGrade,
+            brivaSpp: s.brivaSpp || existing.brivaSpp,
+            brivaKegiatan: s.brivaKegiatan || existing.brivaKegiatan,
+            brivaEkskul: s.brivaEkskul || existing.brivaEkskul,
+            customerIdBri: s.customerIdBri || existing.customerIdBri,
+            vaNumber: s.vaNumber || existing.vaNumber,
+            address: s.address || existing.address,
+            parentPhone: s.parentPhone || existing.parentPhone,
+            parentEmail: s.parentEmail || existing.parentEmail,
+            customSppAmount: s.customSppAmount ?? existing.customSppAmount ?? 350000,
+            customActivityFee: s.customActivityFee ?? existing.customActivityFee ?? 1200000,
+            extracurricularFee: s.extracurricularFee ?? existing.extracurricularFee ?? 200000,
+          });
+        } else {
+          map.set(s.id, {
+            ...s,
+            grade: normGrade,
+          });
+        }
+      });
+      return Array.from(map.values());
     } catch {
       return INITIAL_STUDENTS;
     }
@@ -460,7 +498,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [billTypes, setBillTypes] = useState<BillType[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.BILL_TYPES);
-    return saved ? JSON.parse(saved) : INITIAL_BILL_TYPES;
+    if (!saved) return INITIAL_BILL_TYPES;
+    try {
+      const parsed: BillType[] = JSON.parse(saved);
+      return parsed.map((bt) => {
+        const seed = INITIAL_BILL_TYPES.find((i) => i.id === bt.id);
+        return {
+          ...seed,
+          ...bt,
+          classAmounts: bt.classAmounts || seed?.classAmounts,
+          ekskulFeePerItem: bt.ekskulFeePerItem || seed?.ekskulFeePerItem || 200000,
+        };
+      });
+    } catch {
+      return INITIAL_BILL_TYPES;
+    }
   });
 
   const [bills, setBills] = useState<Bill[]>(() => {
@@ -828,8 +880,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Real-time subscription to Students across all devices
     const unsubscribeStudents = subscribeStudentsFromFirestore((cloudStudents) => {
-      setStudents(cloudStudents);
+      if (cloudStudents && cloudStudents.length > 0) {
+        setStudents(
+          cloudStudents.map((s) => ({
+            ...s,
+            grade: normalizeGrade(s.grade),
+          }))
+        );
+      }
     });
+
+    // Auto-seed initial 212 students from PDF to Cloud Firestore if not yet seeded
+    seedInitialStudentsToFirestore(INITIAL_STUDENTS);
 
     // 4. Real-time subscription to Bills across all devices
     const unsubscribeBills = subscribeBillsFromFirestore((cloudBills) => {
@@ -1754,6 +1816,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return importedCount;
   };
 
+  const syncAllStudentsToCloud = async (): Promise<{ success: boolean; count: number }> => {
+    try {
+      const count = await syncAllStudentsToFirestore(students);
+      showToast(`Berhasil menyinkronkan ${count} data siswa dan nomor BRIVA ke Cloud Firestore!`, 'success');
+      return { success: true, count };
+    } catch (err) {
+      console.error('Error syncing students to cloud:', err);
+      showToast('Gagal menyinkronkan data siswa ke cloud.', 'error');
+      return { success: false, count: 0 };
+    }
+  };
+
+  const updateStudentTariff = async (
+    studentId: string,
+    customSppAmount: number,
+    customActivityFee?: number,
+    extracurricularFee?: number
+  ): Promise<boolean> => {
+    let updated: Student | undefined;
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id === studentId) {
+          updated = {
+            ...s,
+            customSppAmount,
+            customActivityFee: customActivityFee !== undefined ? customActivityFee : s.customActivityFee,
+            extracurricularFee: extracurricularFee !== undefined ? extracurricularFee : s.extracurricularFee,
+          };
+          return updated;
+        }
+        return s;
+      })
+    );
+    if (updated) {
+      await saveStudentToFirestore(updated);
+      showToast(`Tarif siswa ${updated.name} berhasil disimpan ke Cloud Firestore.`, 'success');
+      return true;
+    }
+    return false;
+  };
+
+  const updateClassActivityTariff = async (classAmounts: Record<string, number>): Promise<boolean> => {
+    let updatedType: BillType | undefined;
+    setBillTypes((prev) =>
+      prev.map((bt) => {
+        if (bt.category === 'KEGIATAN' || bt.id === 'bt-kegiatan') {
+          updatedType = {
+            ...bt,
+            classAmounts: {
+              ...(bt.classAmounts || {}),
+              ...classAmounts,
+            },
+          };
+          return updatedType;
+        }
+        return bt;
+      })
+    );
+    if (updatedType) {
+      await saveBillTypeToFirestore(updatedType);
+      showToast('Tarif uang kegiatan per kelas berhasil disimpan ke Cloud Firestore.', 'success');
+      return true;
+    }
+    return false;
+  };
+
+  const updateEkskulTariffRate = async (ratePerSemester: number): Promise<boolean> => {
+    let updatedType: BillType | undefined;
+    setBillTypes((prev) =>
+      prev.map((bt) => {
+        if (bt.category === 'EKSTRAKURIKULER' || bt.id === 'bt-ekskul') {
+          updatedType = {
+            ...bt,
+            defaultAmount: ratePerSemester,
+            ekskulFeePerItem: ratePerSemester,
+          };
+          return updatedType;
+        }
+        return bt;
+      })
+    );
+    if (updatedType) {
+      await saveBillTypeToFirestore(updatedType);
+      showToast('Tarif ekskul semesteran berhasil disimpan ke Cloud Firestore.', 'success');
+      return true;
+    }
+    return false;
+  };
+
   // Bill management
   const addBillType = (data: Omit<BillType, 'id'>) => {
     const newType: BillType = {
@@ -1929,12 +2080,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!exists) {
         let studentAmount = customAmount !== undefined && customAmount > 0 ? customAmount : bt.defaultAmount;
         if (customAmount === undefined || customAmount <= 0) {
-          if (bt.category === 'SPP' && student.customSppAmount && student.customSppAmount > 0) {
-            studentAmount = student.customSppAmount;
-          } else if (bt.category === 'KEGIATAN' && student.customActivityFee && student.customActivityFee > 0) {
-            studentAmount = student.customActivityFee;
-          } else if (bt.category === 'EKSTRAKURIKULER' && student.extracurricularFee && student.extracurricularFee > 0) {
-            studentAmount = student.extracurricularFee;
+          if (bt.category === 'SPP') {
+            // Tarif SPP bulanan berbeda setiap anak
+            studentAmount = student.customSppAmount && student.customSppAmount > 0 ? student.customSppAmount : bt.defaultAmount;
+          } else if (bt.category === 'KEGIATAN') {
+            // Tarif uang kegiatan tahunan berbeda setiap kelas
+            const normalizedG = normalizeGrade(student.grade);
+            const classRate = bt.classAmounts?.[normalizedG] || bt.classAmounts?.[student.grade];
+            if (student.customActivityFee && student.customActivityFee > 0) {
+              studentAmount = student.customActivityFee;
+            } else if (classRate && classRate > 0) {
+              studentAmount = classRate;
+            } else {
+              studentAmount = bt.defaultAmount;
+            }
+          } else if (bt.category === 'EKSTRAKURIKULER') {
+            // Tarif ekskul sebesar 200.000 / semester untuk 1 pilihan ekskul
+            const ekskulCount = student.extracurriculars && student.extracurriculars.length > 0 ? student.extracurriculars.length : 1;
+            const ratePerItem = bt.ekskulFeePerItem || 200000;
+            if (student.extracurricularFee && student.extracurricularFee > 0) {
+              studentAmount = student.extracurricularFee;
+            } else {
+              studentAmount = ekskulCount * ratePerItem;
+            }
           }
         }
 
@@ -2745,6 +2913,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteStudent,
         deleteStudentsBulk,
         importStudentsFromExcel,
+        syncAllStudentsToCloud,
+        updateStudentTariff,
+        updateClassActivityTariff,
+        updateEkskulTariffRate,
         billTypes,
         addBillType,
         updateBillType,

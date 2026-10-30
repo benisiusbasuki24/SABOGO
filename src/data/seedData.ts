@@ -8,6 +8,7 @@ import {
   Teacher,
   TeachingAdminDoc,
 } from '../types';
+import { PDF_EXTRACTED_STUDENTS } from './seedStudentsPdf';
 
 export const INITIAL_STAFF_INFO: SchoolStaffInfo = {
   schoolName: 'SD BOPKRI Gondolayu',
@@ -32,7 +33,7 @@ export const INITIAL_BILL_TYPES: BillType[] = [
     category: 'SPP',
     frequency: 'BULANAN',
     defaultAmount: 350000,
-    description: 'Sumbangan Pembinaan Pendidikan reguler setiap bulan',
+    description: 'Sumbangan Pembinaan Pendidikan bulanan (tarif berbeda setiap anak sesuai ketetapan)',
     targetGrades: ['Semua Kelas'],
     isActive: true,
   },
@@ -41,9 +42,23 @@ export const INITIAL_BILL_TYPES: BillType[] = [
     name: 'Uang Kegiatan Per Tahun',
     category: 'KEGIATAN',
     frequency: 'TAHUNAN',
-    defaultAmount: 1000000,
-    description: 'Biaya kegiatan pembelajaran tahunan (Karya Wisata, Paskah, Natal, Ujian Sekolah & Pentas Seni)',
+    defaultAmount: 1200000,
+    description: 'Biaya kegiatan pembelajaran tahunan (tarif uang kegiatan berbeda setiap kelas)',
     targetGrades: ['Semua Kelas'],
+    classAmounts: {
+      '1.1': 1000000,
+      '1.2': 1000000,
+      '2.1': 1100000,
+      '2.2': 1100000,
+      '3.1': 1200000,
+      '3.2': 1200000,
+      '4.1': 1300000,
+      '4.2': 1300000,
+      '5.1': 1400000,
+      '5.2': 1400000,
+      '6.1': 1500000,
+      '6.2': 1500000,
+    },
     isActive: true,
   },
   {
@@ -52,7 +67,8 @@ export const INITIAL_BILL_TYPES: BillType[] = [
     category: 'EKSTRAKURIKULER',
     frequency: 'SEMESTER',
     defaultAmount: 200000,
-    description: 'Iuran ekstrakurikuler pilihan (Drumband, Pramuka, Tari Tradisional, Paduan Suara, Futsal, Robotik)',
+    ekskulFeePerItem: 200000, // Tarif ekskul sebesar 200.000/semester untuk 1 pilihan ekskul
+    description: 'Tarif ekstrakurikuler sebesar Rp 200.000 / semester untuk 1 pilihan ekskul',
     targetGrades: ['Semua Kelas'],
     isActive: true,
   },
@@ -68,8 +84,8 @@ export const INITIAL_BILL_TYPES: BillType[] = [
   },
 ];
 
-// Data Siswa (Semua data contoh dihapus, diisi melalui input aplikasi & disinkronkan ke Cloud Firestore)
-export const INITIAL_STUDENTS: Student[] = [];
+// Data Siswa resmi SD BOPKRI Gondolayu (212 siswa diekstrak lengkap dari berkas PDF BRI)
+export const INITIAL_STUDENTS: Student[] = PDF_EXTRACTED_STUDENTS;
 
 // Data Tagihan Siswa (Semua data contoh dihapus, diisi melalui input aplikasi & disinkronkan ke Cloud Firestore)
 export const INITIAL_BILLS: Bill[] = [];

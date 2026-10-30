@@ -309,3 +309,36 @@ export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<vo
     console.warn('Error seeding users to Firestore:', err);
   }
 }
+
+export async function seedInitialStudentsToFirestore(students: Student[]): Promise<number> {
+  try {
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
+    const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
+    let seeded = 0;
+    for (const student of students) {
+      if (!existingIds.has(student.id)) {
+        await saveDocument(COLLECTIONS.STUDENTS, student);
+        seeded++;
+      }
+    }
+    return seeded;
+  } catch (err) {
+    console.error('Failed to seed initial students to Firestore:', err);
+    return 0;
+  }
+}
+
+export async function syncAllStudentsToFirestore(students: Student[]): Promise<number> {
+  try {
+    let saved = 0;
+    for (const student of students) {
+      await saveDocument(COLLECTIONS.STUDENTS, student);
+      saved++;
+    }
+    return saved;
+  } catch (err) {
+    console.error('Failed to sync all students to Firestore:', err);
+    return 0;
+  }
+}
+

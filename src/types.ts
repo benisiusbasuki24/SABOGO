@@ -23,23 +23,77 @@ export const EXTRACURRICULAR_OPTIONS = [
 
 export type ExtracurricularName = (typeof EXTRACURRICULAR_OPTIONS)[number];
 
+export const SCHOOL_GRADES = [
+  '1.1',
+  '1.2',
+  '2.1',
+  '2.2',
+  '3.1',
+  '3.2',
+  '4.1',
+  '4.2',
+  '5.1',
+  '5.2',
+  '6.1',
+  '6.2',
+] as const;
+
+export type SchoolGrade = (typeof SCHOOL_GRADES)[number];
+
+export const GRADE_MAPPING: Record<string, string> = {
+  'Kelas 1A': '1.1',
+  '1A': '1.1',
+  'Kelas 1B': '1.2',
+  '1B': '1.2',
+  'Kelas 2A': '2.1',
+  '2A': '2.1',
+  'Kelas 2B': '2.2',
+  '2B': '2.2',
+  'Kelas 3A': '3.1',
+  '3A': '3.1',
+  'Kelas 3B': '3.2',
+  '3B': '3.2',
+  'Kelas 4A': '4.1',
+  '4A': '4.1',
+  'Kelas 4B': '4.2',
+  '4B': '4.2',
+  'Kelas 5A': '5.1',
+  '5A': '5.1',
+  'Kelas 5B': '4.2', // Sesuai permintaan pengguna: kelas 5B menjadi 4.2
+  '5B': '4.2',
+  'Kelas 6A': '6.1',
+  '6A': '6.1',
+  'Kelas 6B': '6.2',
+  '6B': '6.2',
+};
+
+export function normalizeGrade(raw?: string): string {
+  if (!raw) return '1.1';
+  const trimmed = raw.trim();
+  return GRADE_MAPPING[trimmed] || trimmed;
+}
+
 export interface Student {
   id: string;
   nis: string;
   nisn: string;
   name: string;
-  grade: string; // e.g. "Kelas 1A", "Kelas 2B", "Kelas 6A"
+  grade: string; // "1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "4.1", "4.2", "5.1", "6.1", "6.2"
   gender: 'L' | 'P';
   parentName: string;
   parentPhone: string; // WhatsApp number
   parentEmail: string;
   address: string;
-  vaNumber: string; // Default VA number
+  vaNumber: string; // Default VA number (brivaSpp)
+  brivaSpp?: string; // 5733-SPP TETAP BOGOTA
+  brivaKegiatan?: string; // 5747-UANG KEGIATAN [DU]
+  brivaEkskul?: string; // 14172-EKSKUL BOGOTA
+  customerIdBri?: string; // ID Pelanggan from BRI
   status: 'AKTIF' | 'NONAKTIF';
-  extracurriculars?: ExtracurricularName[]; // Max 2 pilihan
-  extracurricularFee?: number; // Besaran nominal biaya ekskul untuk siswa ini
-  customSppAmount?: number; // Besaran nominal SPP bulanan manual siswa ini
-  customActivityFee?: number; // Besaran nominal Uang Kegiatan manual siswa ini
+  extracurriculars?: ExtracurricularName[]; // Max pilihan
+  extracurricularFee?: number; // Besaran nominal biaya ekskul untuk siswa ini (Rp 200.000/semester per 1 pilihan ekskul)
+  customSppAmount?: number; // Besaran nominal SPP bulanan siswa ini (berbeda setiap anak)
+  customActivityFee?: number; // Besaran nominal Uang Kegiatan tahunan siswa ini (berbeda per kelas)
   createdAt: string;
 }
 
@@ -50,7 +104,9 @@ export interface BillType {
   frequency: BillFrequency;
   defaultAmount: number;
   description: string;
-  targetGrades: string[]; // e.g. ["pilih nama murid"] or ["Kelas 1A", "Kelas 1B"]
+  targetGrades: string[]; // e.g. ["Semua Kelas"] or ["1.1", "1.2", ...]
+  classAmounts?: Record<string, number>; // Tarif per kelas (misal uang kegiatan tahunan berbeda setiap kelas)
+  ekskulFeePerItem?: number; // Tarif ekskul per pilihan per semester (default Rp 200.000)
   isActive: boolean;
 }
 

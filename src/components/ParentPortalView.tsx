@@ -234,47 +234,157 @@ export const ParentPortalView: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Virtual Account Mandiri Box */}
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300/80 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-2 max-w-sm shrink-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-amber-700" />
-                  Nomor Virtual Account Mandiri
+            {/* Right: ID Pelanggan BRI & Biodata Kontak */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-2 max-w-sm shrink-0 text-xs">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-blue-700" />
+                  ID Pelanggan BRI (BRIVA)
                 </span>
-                <span className="text-[10px] bg-amber-200/60 text-amber-900 font-extrabold px-1.5 py-0.5 rounded">
-                  Bank Mandiri
+                <span className="font-mono font-extrabold text-blue-900 bg-blue-100 px-2 py-0.5 rounded text-xs">
+                  {matchedStudent.customerIdBri || matchedStudent.nis}
                 </span>
               </div>
-
-              <div className="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-xl border border-amber-200">
-                <span className="font-mono text-base font-extrabold text-blue-950 tracking-wider">
-                  {vaNumber}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleCopyVa}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors cursor-pointer"
-                  title="Salin Nomor VA"
-                >
-                  {copiedVa ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Tersalin</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin</span>
-                    </>
-                  )}
-                </button>
+              <div className="space-y-1 text-slate-600">
+                <p>Alamat: <strong className="text-slate-800">{matchedStudent.address || 'Yogyakarta'}</strong></p>
+                <p>Email: <strong className="text-slate-800">{matchedStudent.parentEmail || '-'}</strong></p>
+                <p>WhatsApp: <strong className="text-emerald-700">{matchedStudent.parentPhone || '-'}</strong></p>
               </div>
-
-              <p className="text-[10px] text-amber-800/90 leading-tight">
-                Gunakan nomor VA di atas saat transfer via Livin' by Mandiri, ATM Mandiri, atau antar-bank dengan kode bank 008.
-              </p>
             </div>
 
+          </div>
+
+          {/* 3 JENIS VIRTUAL ACCOUNT BRI (BRIVA) SD BOPKRI GONDOLAYU */}
+          <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-extrabold bg-blue-800 text-white">
+                  BANK BRI
+                </span>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Daftar Nomor Virtual Akun BRI (BRIVA) Siswa - Terbagi Menjadi 3 Jenis Pembayaran
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                Dapat dibayar via BRImo, ATM BRI, Agen BRILink, atau Transfer Antar-Bank (Kode 002)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1. BRIVA SPP TETAP */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 border-2 border-blue-200 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-2xs">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
+                      5733 · SPP TETAP
+                    </span>
+                    <span className="text-[11px] font-extrabold text-blue-950">
+                      Bulanan
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm mt-2">
+                    SPP Tetap BOGOTA
+                  </h4>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Tarif SPP: <strong className="text-blue-950 font-bold">{formatRupiah(matchedStudent.customSppAmount || 350000)}</strong> / bulan
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-blue-200 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase font-bold text-slate-400">Nomor BRIVA SPP</p>
+                    <p className="font-mono font-black text-blue-950 text-sm tracking-wider truncate">
+                      {matchedStudent.brivaSpp || matchedStudent.vaNumber || `108102247000${matchedStudent.nis.slice(-3)}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyVa(matchedStudent.brivaSpp || matchedStudent.vaNumber || `108102247000${matchedStudent.nis.slice(-3)}`)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-blue-800 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Salin Nomor BRIVA SPP"
+                  >
+                    {copiedVa ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedVa ? 'Tersalin' : 'Salin'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. BRIVA UANG KEGIATAN */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/60 border-2 border-amber-200 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-2xs">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded">
+                      5747 · UANG KEGIATAN [DU]
+                    </span>
+                    <span className="text-[11px] font-extrabold text-amber-950">
+                      Tahunan
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm mt-2">
+                    Uang Kegiatan BOGOTA
+                  </h4>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Tarif Kelas {matchedStudent.grade}: <strong className="text-amber-950 font-bold">{formatRupiah(matchedStudent.customActivityFee || 1200000)}</strong> / tahun
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-amber-200 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase font-bold text-slate-400">Nomor BRIVA Kegiatan</p>
+                    <p className="font-mono font-black text-amber-950 text-sm tracking-wider truncate">
+                      {matchedStudent.brivaKegiatan || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 400).toString()}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyVa(matchedStudent.brivaKegiatan || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 400).toString()}`)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Salin Nomor BRIVA Uang Kegiatan"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. BRIVA EKSKUL */}
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 border-2 border-emerald-200 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-2xs">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded">
+                      14172 · EKSKUL BOGOTA
+                    </span>
+                    <span className="text-[11px] font-extrabold text-emerald-950">
+                      Semesteran
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm mt-2">
+                    Iuran Ekskul (Rp 200.000 / semester)
+                  </h4>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Pilihan: <strong className="text-emerald-950 font-bold">{matchedStudent.extracurriculars && matchedStudent.extracurriculars.length > 0 ? matchedStudent.extracurriculars.join(', ') : 'Belum memilih'}</strong> ({formatRupiah(matchedStudent.extracurricularFee || 200000)})
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-emerald-200 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[9px] uppercase font-bold text-slate-400">Nomor BRIVA Ekskul</p>
+                    <p className="font-mono font-black text-emerald-950 text-sm tracking-wider truncate">
+                      {matchedStudent.brivaEkskul || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 900).toString()}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyVa(matchedStudent.brivaEkskul || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 900).toString()}`)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Salin Nomor BRIVA Ekskul"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

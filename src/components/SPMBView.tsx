@@ -195,7 +195,7 @@ export const SPMBView: React.FC = () => {
   const [parentName, setParentName] = useState('');
   const [parentPhone, setParentPhone] = useState('08');
   const [parentEmail, setParentEmail] = useState('');
-  const [targetGrade, setTargetGrade] = useState('Kelas 1A');
+  const [targetGrade, setTargetGrade] = useState('1.1');
   const [entryTrack, setEntryTrack] = useState<SPMBEntryTrack>('REGULER');
   const [notes, setNotes] = useState('');
 
@@ -1330,9 +1330,9 @@ export const SPMBView: React.FC = () => {
                     onChange={(e) => setTargetGrade(e.target.value)}
                     className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-medium"
                   >
-                    <option value="Kelas 1A">Kelas 1A</option>
-                    <option value="Kelas 1B">Kelas 1B</option>
-                    <option value="Kelas 1">Kelas 1 (Paralel)</option>
+                    <option value="1.1">Kelas 1.1</option>
+                    <option value="1.2">Kelas 1.2</option>
+                    <option value="1.1">Kelas 1 (Paralel)</option>
                   </select>
                 </div>
 
