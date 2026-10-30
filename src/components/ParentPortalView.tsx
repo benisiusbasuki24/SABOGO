@@ -28,6 +28,7 @@ import { StudentPicker } from './StudentPicker';
 export const ParentPortalView: React.FC = () => {
   const {
     currentUser,
+    isSuperAdmin,
     students,
     bills,
     transactions,
@@ -42,9 +43,13 @@ export const ParentPortalView: React.FC = () => {
   const [selectedStudentIdOverride, setSelectedStudentIdOverride] = useState<string>('');
   const [linkingChild, setLinkingChild] = useState<Student | null>(null);
 
-  // Find all children belonging to this parent account (strict isolation)
+  // Strict isolation: Orang Tua ONLY accesses their own child/children
   const myChildren = useMemo(() => {
     if (!currentUser) return [];
+    if (isSuperAdmin) {
+      // Super Administrator preview access
+      return students;
+    }
     return students.filter((s) => {
       if (currentUser.studentId && s.id === currentUser.studentId) return true;
       if (currentUser.studentNis && s.nis === currentUser.studentNis) return true;
@@ -58,31 +63,37 @@ export const ParentPortalView: React.FC = () => {
       if (currentUser.name && s.parentName && currentUser.name.trim().toLowerCase() === s.parentName.trim().toLowerCase()) return true;
       return false;
     });
-  }, [currentUser, students]);
+  }, [currentUser, students, isSuperAdmin]);
 
   // Primary linked student
   const matchedStudent = useMemo(() => {
     if (selectedStudentIdOverride) {
       const found = myChildren.find((s) => s.id === selectedStudentIdOverride);
       if (found) return found;
+      if (isSuperAdmin) {
+        const adminFound = students.find((s) => s.id === selectedStudentIdOverride);
+        if (adminFound) return adminFound;
+      }
     }
-    if (currentUser?.studentId) {
-      const found = students.find((s) => s.id === currentUser.studentId);
-      if (found) return found;
-    }
-    if (currentUser?.studentNis) {
-      const found = students.find((s) => s.nis === currentUser.studentNis);
-      if (found) return found;
-    }
-    if (currentUser?.studentName) {
-      const found = students.find((s) => s.name.toLowerCase() === currentUser.studentName?.toLowerCase());
-      if (found) return found;
+    if (!isSuperAdmin) {
+      if (currentUser?.studentId) {
+        const found = students.find((s) => s.id === currentUser.studentId);
+        if (found) return found;
+      }
+      if (currentUser?.studentNis) {
+        const found = students.find((s) => s.nis === currentUser.studentNis);
+        if (found) return found;
+      }
+      if (currentUser?.studentName) {
+        const found = students.find((s) => s.name.toLowerCase() === currentUser.studentName?.toLowerCase());
+        if (found) return found;
+      }
     }
     if (myChildren.length > 0) {
       return myChildren[0];
     }
-    return null;
-  }, [currentUser, students, myChildren, selectedStudentIdOverride]);
+    return isSuperAdmin && students.length > 0 ? students[0] : null;
+  }, [currentUser, students, myChildren, selectedStudentIdOverride, isSuperAdmin]);
 
   const handleConfirmLinkStudent = async () => {
     if (!linkingChild) return;
@@ -147,8 +158,28 @@ export const ParentPortalView: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Selector if parent has multiple children (ONLY parent's own children!) */}
-          {myChildren.length > 1 && (
+          {/* Super Admin Preview Selector (can preview any student) */}
+          {isSuperAdmin && (
+            <div className="bg-amber-400/20 backdrop-blur-md p-3 rounded-xl border border-amber-400/40 text-xs shrink-0 max-w-xs">
+              <span className="text-[11px] text-amber-300 font-bold block mb-1">
+                Pratinjau Siswa (Khusus Super Admin):
+              </span>
+              <select
+                value={matchedStudent?.id || ''}
+                onChange={(e) => setSelectedStudentIdOverride(e.target.value)}
+                className="w-full bg-slate-900/95 text-white border border-amber-400/50 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-hidden"
+              >
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    [{s.grade}] {s.name} - NIS {s.nis}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Quick Selector if parent has multiple children (ONLY parent's own registered children!) */}
+          {!isSuperAdmin && myChildren.length > 1 && (
             <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/15 text-xs shrink-0 max-w-xs">
               <span className="text-[11px] text-blue-200 font-semibold block mb-1">
                 Pilih Profil Siswa (Anak Anda):

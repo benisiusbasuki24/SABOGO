@@ -143,10 +143,10 @@ export const SPMBView: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterTrack, setFilterTrack] = useState<string>('ALL');
 
-  // Auto NIS sequence
-  const currentYear = new Date().getFullYear();
+  // Auto NIS sequence (Dimulai dari angka 2027)
+  const spmbYear = 2027;
   const nextNisSequence = spmbRegistrations.length + 1;
-  const previewNis = `${currentYear}${String(nextNisSequence).padStart(3, '0')}`;
+  const previewNis = `${spmbYear}${String(nextNisSequence).padStart(3, '0')}`;
 
   // Form States (All uppercase handling)
   const [fullName, setFullName] = useState('');

@@ -2567,10 +2567,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addSPMBRegistration = (
     data: Omit<SPMBRegistration, 'id' | 'registrationNumber' | 'nis' | 'registrationDate' | 'emailNotificationSent' | 'emailSentAt'>
   ): SPMBRegistration => {
-    const currentYear = new Date().getFullYear();
+    const spmbYear = 2027;
     const count = spmbRegistrations.length + 1;
-    const nis = `${currentYear}${String(count).padStart(3, '0')}`;
-    const registrationNumber = `SPMB-${currentYear}/${String(count).padStart(3, '0')}`;
+    const nis = `${spmbYear}${String(count).padStart(3, '0')}`;
+    const registrationNumber = `SPMB-${spmbYear}/${String(count).padStart(3, '0')}`;
     const nowIso = new Date().toISOString();
 
     const newReg: SPMBRegistration = {

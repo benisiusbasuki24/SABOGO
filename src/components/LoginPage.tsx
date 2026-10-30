@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { UserRole } from '../types';
+import { generateUniqueUserCode } from '../utils/uniqueCode';
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  GraduationCap,
   KeyRound,
   Lock,
   LogIn,
   Mail,
   Phone,
+  Search,
   ShieldCheck,
   Sparkles,
   User,
@@ -20,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login, registerUser, staffInfo } = useApp();
+  const { login, registerUser, staffInfo, students, registeredUsers } = useApp();
 
   // Mode: 'LOGIN' (default) or 'REGISTER'
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
@@ -41,9 +44,28 @@ export const LoginPage: React.FC = () => {
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('08');
   const [regNip, setRegNip] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [studentSearch, setStudentSearch] = useState('');
   const [regStudentName, setRegStudentName] = useState('');
   const [regStudentNis, setRegStudentNis] = useState('');
   const [regStudentGrade, setRegStudentGrade] = useState('Kelas 1A');
+  const [assignedUniqueCode] = useState(() => {
+    const existing = (registeredUsers || []).map((u) => u.uniqueCode).filter(Boolean) as string[];
+    return generateUniqueUserCode(existing);
+  });
+
+  // Filtered students for dropdown
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.nis.toLowerCase().includes(q) ||
+        s.grade.toLowerCase().includes(q) ||
+        (s.parentName && s.parentName.toLowerCase().includes(q))
+    );
+  }, [students, studentSearch]);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +73,7 @@ export const LoginPage: React.FC = () => {
     setSuccessMessage(null);
 
     if (!loginIdentifier.trim()) {
-      setErrorMessage('Silakan masukkan Username atau NIP Anda.');
+      setErrorMessage('Silakan masukkan Username, Kode Unik, atau NIP Anda.');
       return;
     }
 
@@ -88,6 +110,12 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
+    // Role-specific validation: Orang Tua must choose a student from the school student list
+    if (regRole === 'ORANG_TUA' && !selectedStudentId) {
+      setErrorMessage('Wajib memilih siswa putra/putri Anda dari dropdown daftar seluruh siswa sekolah.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await registerUser({
@@ -95,23 +123,28 @@ export const LoginPage: React.FC = () => {
         username: cleanUsername,
         password: regPassword.trim(),
         role: regRole,
+        uniqueCode: assignedUniqueCode,
         email: regEmail.trim(),
         phone: regPhone.trim(),
         nip: regNip.trim() || undefined,
+        studentId: regRole === 'ORANG_TUA' ? selectedStudentId : undefined,
         studentName: regRole === 'ORANG_TUA' ? regStudentName.trim() || undefined : undefined,
         studentNis: regRole === 'ORANG_TUA' ? regStudentNis.trim() || undefined : undefined,
         studentGrade: regRole === 'ORANG_TUA' ? regStudentGrade.trim() || undefined : undefined,
       });
 
       if (res.success) {
-        setSuccessMessage(`${res.message} Anda sekarang dapat langsung masuk.`);
+        const finalCode = res.user?.uniqueCode || assignedUniqueCode;
+        setSuccessMessage(
+          `Pendaftaran akun berhasil! Nomor Urut Registrasi / Kode Unik Anda: ${finalCode}. Anda dapat langsung masuk dengan username atau kode unik tersebut.`
+        );
         // Prefill login
         setLoginIdentifier(cleanUsername);
         setLoginPassword(regPassword.trim());
         // Switch to login tab after brief pause
         setTimeout(() => {
           setActiveTab('LOGIN');
-        }, 1500);
+        }, 2000);
       } else {
         setErrorMessage(res.message);
       }
@@ -434,51 +467,84 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Conditional Fields: If Orang Tua */}
+                {/* Conditional Fields: If Orang Tua -> DROPDOWN SELURUH SISWA SEKOLAH */}
                 {regRole === 'ORANG_TUA' && (
-                  <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
-                    <span className="text-[10px] font-bold text-blue-900 uppercase block">
-                      Data Siswa Putra/Putri Anda (Opsional):
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="Nama Murid (Anak)"
-                        value={regStudentName}
-                        onChange={(e) => setRegStudentName(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
-                      />
-                      <input
-                        type="text"
-                        placeholder="NIS Siswa (e.g. 2024001)"
-                        value={regStudentNis}
-                        onChange={(e) => setRegStudentNis(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900"
-                      />
+                  <div className="p-3 bg-blue-50/90 border-2 border-blue-200 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-blue-950 flex items-center gap-1.5">
+                        <GraduationCap className="w-4 h-4 text-blue-700" />
+                        <span>Pilih Siswa (Seluruh Siswa Sekolah)</span>
+                        <span className="text-red-500">*</span>
+                      </span>
+                      <span className="text-[10px] font-extrabold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">
+                        {students.length} Siswa Terdaftar
+                      </span>
                     </div>
+
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      Silakan pilih nama putra/putri Anda dari dropdown daftar seluruh siswa sekolah agar tagihan SPP dan riwayat pembayaran otomatis terhubung:
+                    </p>
+
+                    {/* Quick Search Filter */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Ketik untuk mencari nama, NIS, atau kelas siswa..."
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-blue-300 rounded-xl text-slate-900 font-medium placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                      />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                    </div>
+
+                    {/* DROPDOWN SELURUH SISWA SEKOLAH */}
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
-                        Kelas Siswa:
-                      </label>
                       <select
-                        value={regStudentGrade}
-                        onChange={(e) => setRegStudentGrade(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-blue-200 rounded-lg text-slate-900 font-semibold"
+                        required
+                        value={selectedStudentId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedStudentId(val);
+                          const found = students.find((s) => s.id === val);
+                          if (found) {
+                            setRegStudentName(found.name);
+                            setRegStudentNis(found.nis);
+                            setRegStudentGrade(found.grade);
+                            if (found.parentPhone && (!regPhone || regPhone === '08')) {
+                              setRegPhone(found.parentPhone);
+                            }
+                          } else {
+                            setRegStudentName('');
+                            setRegStudentNis('');
+                            setRegStudentGrade('Kelas 1A');
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-xs bg-white border-2 border-blue-400 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 text-slate-900 font-bold shadow-xs cursor-pointer"
                       >
-                        <option value="Kelas 1A">Kelas 1A</option>
-                        <option value="Kelas 1B">Kelas 1B</option>
-                        <option value="Kelas 2A">Kelas 2A</option>
-                        <option value="Kelas 2B">Kelas 2B</option>
-                        <option value="Kelas 3A">Kelas 3A</option>
-                        <option value="Kelas 3B">Kelas 3B</option>
-                        <option value="Kelas 4A">Kelas 4A</option>
-                        <option value="Kelas 4B">Kelas 4B</option>
-                        <option value="Kelas 5A">Kelas 5A</option>
-                        <option value="Kelas 5B">Kelas 5B</option>
-                        <option value="Kelas 6A">Kelas 6A</option>
-                        <option value="Kelas 6B">Kelas 6B</option>
+                        <option value="">
+                          -- Klik Disini untuk Memilih Siswa ({filteredStudents.length} Siswa) --
+                        </option>
+                        {filteredStudents.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            [{s.grade}] {s.name} — NIS: {s.nis} {s.parentName ? `(Wali: ${s.parentName})` : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
+
+                    {/* Rincian Siswa Terpilih */}
+                    {selectedStudentId && (
+                      <div className="p-2.5 bg-white border border-emerald-300 rounded-xl shadow-2xs space-y-1">
+                        <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Siswa Terhubung: <strong>{regStudentName}</strong></span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 pt-1 border-t border-slate-100">
+                          <div>NIS: <strong className="text-slate-800 font-mono">{regStudentNis}</strong></div>
+                          <div>Kelas: <strong className="text-slate-800">{regStudentGrade}</strong></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -497,6 +563,22 @@ export const LoginPage: React.FC = () => {
                     />
                   </div>
                 )}
+
+                {/* Kode Unik Registrasi 8 Karakter (4 Huruf & 4 Angka) */}
+                <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-black text-amber-950 uppercase flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      Nomor Registrasi & Kode Unik Akun:
+                    </span>
+                    <p className="text-[10px] text-amber-900/90 leading-tight">
+                      Kombinasi 4 angka & 4 huruf unik per username (dapat digunakan untuk login).
+                    </p>
+                  </div>
+                  <div className="font-mono font-black text-xs sm:text-sm text-blue-950 bg-white px-2.5 py-1 rounded-xl border border-amber-400 shadow-2xs tracking-widest shrink-0">
+                    {assignedUniqueCode}
+                  </div>
+                </div>
 
                 <button
                   type="submit"

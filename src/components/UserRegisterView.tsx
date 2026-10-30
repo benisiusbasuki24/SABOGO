@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { AuthUser, EmploymentStatus, Student, UserRole } from '../types';
 import { StudentPicker } from './StudentPicker';
+import { generateUniqueUserCode } from '../utils/uniqueCode';
 import {
   AlertCircle,
   AlertTriangle,
@@ -86,6 +87,7 @@ export const UserRegisterView: React.FC = () => {
   const [editStudentName, setEditStudentName] = useState('');
   const [editStudentNis, setEditStudentNis] = useState('');
   const [editStudentGrade, setEditStudentGrade] = useState('Kelas 1A');
+  const [editUniqueCode, setEditUniqueCode] = useState('');
 
   // Add User Form States
   const [newName, setNewName] = useState('');
@@ -99,6 +101,7 @@ export const UserRegisterView: React.FC = () => {
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentNis, setNewStudentNis] = useState('');
   const [newStudentGrade, setNewStudentGrade] = useState('Kelas 1A');
+  const [newUniqueCode, setNewUniqueCode] = useState('');
 
   // Gatekeeping: If not Super Admin, show restricted access notice
   if (!isSuperAdmin) {
@@ -139,6 +142,7 @@ export const UserRegisterView: React.FC = () => {
         const query = searchQuery.trim().toLowerCase();
         const matchName = user.name.toLowerCase().includes(query);
         const matchUsername = user.username.toLowerCase().includes(query);
+        const matchUniqueCode = (user.uniqueCode || '').toLowerCase().includes(query);
         const matchEmail = (user.email || '').toLowerCase().includes(query);
         const matchPhone = (user.phone || '').toLowerCase().includes(query);
         const matchNip = (user.nip || '').toLowerCase().includes(query);
@@ -148,6 +152,7 @@ export const UserRegisterView: React.FC = () => {
         return (
           matchName ||
           matchUsername ||
+          matchUniqueCode ||
           matchEmail ||
           matchPhone ||
           matchNip ||
@@ -210,6 +215,7 @@ export const UserRegisterView: React.FC = () => {
     setEditStudentName(user.studentName || '');
     setEditStudentNis(user.studentNis || '');
     setEditStudentGrade(user.studentGrade || 'Kelas 1A');
+    setEditUniqueCode(user.uniqueCode || generateUniqueUserCode(registeredUsers.map((u) => u.uniqueCode)));
     setFeedbackMessage(null);
   };
 
@@ -248,6 +254,7 @@ export const UserRegisterView: React.FC = () => {
         name: editName.trim(),
         role: editRole,
         username: editUsername.trim().toLowerCase(),
+        uniqueCode: editUniqueCode.trim() || undefined,
         password: editPassword.trim() || editingUser.password || '123',
         email: editEmail.trim(),
         phone: editPhone.trim() || undefined,
@@ -335,6 +342,7 @@ export const UserRegisterView: React.FC = () => {
         username: newUsername.trim().toLowerCase(),
         password: newPassword.trim(),
         role: newRole,
+        uniqueCode: newUniqueCode.trim() || undefined,
         email: newEmail.trim(),
         phone: newPhone.trim(),
         nip: newRole !== 'ORANG_TUA' ? newNip.trim() || undefined : undefined,
@@ -456,6 +464,8 @@ export const UserRegisterView: React.FC = () => {
 
         <button
           onClick={() => {
+            const existing = registeredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+            setNewUniqueCode(generateUniqueUserCode(existing));
             setIsAddUserOpen(true);
             setFeedbackMessage(null);
           }}
@@ -687,10 +697,19 @@ export const UserRegisterView: React.FC = () => {
                       {/* Username & Kata Sandi */}
                       <td className="py-3 px-4">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-mono font-bold text-blue-950 text-xs bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
                               @{user.username}
                             </span>
+                            {user.uniqueCode && (
+                              <span
+                                className="font-mono text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1 shadow-2xs"
+                                title="Nomor Registrasi & Kode Unik (4 Angka & 4 Huruf)"
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                <span>{user.uniqueCode}</span>
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-1 text-[11px] text-slate-600">
@@ -957,6 +976,39 @@ export const UserRegisterView: React.FC = () => {
                     onChange={(e) => setEditPhone(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-mono"
                   />
+                </div>
+
+                {/* Kode Unik Registrasi (4 Angka & 4 Huruf) */}
+                <div className="sm:col-span-2 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-amber-950 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      Nomor Registrasi / Kode Unik Akun (4 Angka & 4 Huruf)
+                    </label>
+                    <span className="text-[10px] text-amber-800">
+                      Kode identifikasi unik per username & dapat digunakan saat login
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      maxLength={8}
+                      value={editUniqueCode}
+                      onChange={(e) => setEditUniqueCode(e.target.value.toUpperCase())}
+                      className="w-28 px-2 py-1 text-xs font-mono font-bold uppercase bg-white border border-amber-400 rounded-lg text-center text-blue-950 tracking-wider"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const existing = registeredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+                        setEditUniqueCode(generateUniqueUserCode(existing));
+                      }}
+                      className="px-2 py-1 bg-amber-200 hover:bg-amber-300 text-amber-950 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                      title="Generate Kode Baru"
+                    >
+                      Acak
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -1235,6 +1287,35 @@ export const UserRegisterView: React.FC = () => {
                     onChange={(e) => setNewPhone(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:bg-white text-slate-900 font-mono"
                   />
+                </div>
+
+                {/* Kode Unik Otomatis (4 Angka & 4 Huruf) */}
+                <div className="sm:col-span-2 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-amber-950 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      Nomor Registrasi / Kode Unik Akun (4 Angka & 4 Huruf)
+                    </label>
+                    <span className="text-[10px] text-amber-800">
+                      Otomatis dibuat untuk memastikan data per username unik dan aman
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 text-xs font-mono font-black uppercase bg-white border border-amber-400 rounded-lg text-blue-950 tracking-wider">
+                      {newUniqueCode || 'MEMBUAT...'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const existing = registeredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+                        setNewUniqueCode(generateUniqueUserCode(existing));
+                      }}
+                      className="px-2 py-1 bg-amber-200 hover:bg-amber-300 text-amber-950 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                      title="Generate Ulang Kode"
+                    >
+                      Acak
+                    </button>
+                  </div>
                 </div>
 
               </div>
