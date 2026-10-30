@@ -1,7 +1,7 @@
-import bopkriLogoImg from './images/logo_bopkri_gondolayu.png';
+import bopkriLogoImg from './images/logotransp.png';
 import qrisCodeImg from './images/qris_bopkri_code_1792603194917.jpg';
 import schoolCrestImg from './images/school_crest_bopkri_1792603178165.jpg';
-import officialStampImg from './images/aaa.jpg';
+import officialStampImg from './images/stampbogota.png';
 
 // Bundled assets processed by Vite for guaranteed loading across all devices & browsers
 export const BOPKRI_LOGO = bopkriLogoImg;

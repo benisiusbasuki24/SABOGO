@@ -334,7 +334,7 @@ export const AdminDataPurgeModal: React.FC = () => {
             </div>
           </div>
 
-          {/* DANGER ZONE: KOSONGKAN SELURUH DATA SISTEM */}
+          {/* PERINGATAN BERBAHAYA BOSS!!!: KOSONGKAN SELURUH DATA SISTEM */}
           <div className="border-2 border-red-200 bg-red-50/60 rounded-2xl p-5 space-y-4">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-red-100 text-red-700 rounded-xl">

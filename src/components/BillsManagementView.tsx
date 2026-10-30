@@ -255,7 +255,7 @@ export const BillsManagementView: React.FC = () => {
       `Kami menginformasikan tagihan *${b.billTypeName}* periode *${b.period}* sebesar *${formatRupiah(b.amount - b.paidAmount)}*` +
       (b.status === 'MENUNGGAK' ? ` telah melewati jatuh tempo (${b.dueDate}, terlambat ${daysOverdue} hari).` : ` jatuh tempo pada ${b.dueDate}.`) +
       `\n\nPembayaran dapat dilakukan di Loket Kasir SD BOPKRI (Ibu ${staffInfo.cashier}) atau via Virtual Account Mandiri: *88012${b.studentNis}*.\n\n` +
-      `Terima kasih. Tuhan Memberkati.\n` +
+      `Terima kasih. Tuhan Yesus Memberkati.\n` +
       `_Bendahara: ${staffInfo.treasurer} · Kepala Sekolah: ${staffInfo.principal}_`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
