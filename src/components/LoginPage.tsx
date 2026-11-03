@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
-import { UserRole } from '../types';
+import { UserRole, requiresSuperAdminModeration } from '../types';
 import { generateUniqueUserCode } from '../utils/uniqueCode';
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Clock,
   GraduationCap,
   KeyRound,
   Lock,
@@ -15,6 +17,7 @@ import {
   Mail,
   Phone,
   Search,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   User,
@@ -135,16 +138,31 @@ export const LoginPage: React.FC = () => {
 
       if (res.success) {
         const finalCode = res.user?.uniqueCode || assignedUniqueCode;
-        setSuccessMessage(
-          `Pendaftaran akun berhasil! Nomor Urut Registrasi / Kode Unik Anda: ${finalCode}. Anda dapat langsung masuk dengan username atau kode unik tersebut.`
-        );
-        // Prefill login
-        setLoginIdentifier(cleanUsername);
-        setLoginPassword(regPassword.trim());
-        // Switch to login tab after brief pause
-        setTimeout(() => {
-          setActiveTab('LOGIN');
-        }, 2000);
+        const isPending = res.user?.status === 'PENDING';
+
+        if (isPending) {
+          setSuccessMessage(
+            `Pendaftaran berhasil! Akun ${res.user?.name || regName} (${regRole}) telah didaftarkan dengan Nomor Registrasi / Kode Unik: ${finalCode}. Saat ini akun Anda berstatus "MENUNGGU MODERASI" dan memerlukan persetujuan dari Super Administrator (Bpk. Benisius Rahmat Basuki, S.Pd, Gr) sebelum dapat masuk ke sistem.`
+          );
+          // Prefill login so user doesn't have to re-type once approved
+          setLoginIdentifier(cleanUsername);
+          setLoginPassword(regPassword.trim());
+          // Switch to login tab after brief pause so they can see their filled credentials
+          setTimeout(() => {
+            setActiveTab('LOGIN');
+          }, 4500);
+        } else {
+          setSuccessMessage(
+            `Pendaftaran akun berhasil! Nomor Urut Registrasi / Kode Unik Anda: ${finalCode}. Anda dapat langsung masuk dengan username atau kode unik tersebut.`
+          );
+          // Prefill login
+          setLoginIdentifier(cleanUsername);
+          setLoginPassword(regPassword.trim());
+          // Switch to login tab after brief pause
+          setTimeout(() => {
+            setActiveTab('LOGIN');
+          }, 2000);
+        }
       } else {
         setErrorMessage(res.message);
       }
@@ -376,6 +394,28 @@ export const LoginPage: React.FC = () => {
                     <option value="STAFF">Staff / Karyawan (Slip Gaji Saya & Sarpras)</option>
                     <option value="ORANG_TUA">Orang Tua Murid (Cek Tagihan & Riwayat Pembayaran)</option>
                   </select>
+
+                  {/* Informational Callout for Role Moderation Requirement */}
+                  {requiresSuperAdminModeration(regRole) ? (
+                    <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2 shadow-2xs">
+                      <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-extrabold text-amber-950 block">
+                          Memerlukan Moderasi Super Administrator
+                        </span>
+                        <p className="text-[10px] text-amber-800 leading-snug">
+                          Pendaftaran untuk role <strong>{regRole === 'KEPALA_SEKOLAH' ? 'Kepala Sekolah' : regRole === 'BENDAHARA' ? 'Bendahara' : regRole === 'TATA_USAHA' ? 'Tata Usaha / Kasir' : regRole === 'GURU' ? 'Guru Pendidik' : 'Staf / Karyawan'}</strong> memerlukan verifikasi dan persetujuan resmi dari Super Administrator (<strong>Benisius Rahmat Basuki, S.Pd, Gr</strong>) sebelum akun dapat login ke SIBOGO.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-[10px] font-semibold text-emerald-800">
+                        Akun Orang Tua Murid dapat langsung aktif setelah memilih data siswa putra/putri Anda.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. Username with STRICT MINIMUM 8 CHARACTERS Validation */}

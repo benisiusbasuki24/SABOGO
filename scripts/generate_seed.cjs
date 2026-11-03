@@ -52,13 +52,13 @@ const students = list.map((item, index) => {
     parentEmail: item.email || (item.name.toLowerCase().replace(/[^a-z]/g, '') + '@gmail.com'),
     address: item.address || 'Yogyakarta',
     vaNumber: item.brivaSpp || ('108102247000' + item.no.toString().padStart(3, '0')),
-    brivaSpp: item.brivaSpp || '',
-    brivaKegiatan: item.brivaKegiatan || '',
-    brivaEkskul: item.brivaEkskul || '',
+    brivaSpp: item.brivaSpp || ('108102247000' + item.no.toString().padStart(3, '0')),
+    brivaKegiatan: item.brivaKegiatan || ('108102247000' + (400 + item.no).toString().padStart(3, '0')),
+    brivaEkskul: item.brivaEkskul || ('108102247000' + (900 + item.no).toString().padStart(3, '0')),
     customerIdBri: item.customerId,
     status: 'AKTIF',
-    extracurriculars: item.brivaEkskul ? ['PADUS'] : [],
-    extracurricularFee: item.brivaEkskul ? 200000 : 0, // Rp 200.000 / semester untuk 1 ekskul
+    extracurriculars: ['PADUS'],
+    extracurricularFee: 200000, // Rp 200.000 / semester untuk 1 pilihan ekskul
     customSppAmount: spp,
     customActivityFee: actFee,
     createdAt: '2026-07-15T08:00:00.000Z',

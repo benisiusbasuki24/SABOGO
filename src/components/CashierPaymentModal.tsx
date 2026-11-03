@@ -23,11 +23,12 @@ export const CashierPaymentModal: React.FC = () => {
     processPayment,
     openReceiptPrint,
     staffInfo,
+    students,
   } = useApp();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TUNAI');
   const [cashTendered, setCashTendered] = useState<number>(0);
-  const [selectedBank, setSelectedBank] = useState<'BCA' | 'MANDIRI' | 'BRI' | 'BNI'>('BCA');
+  const [selectedBank, setSelectedBank] = useState<'BCA' | 'MANDIRI' | 'BRI' | 'BNI'>('BRI');
   const [referenceNumber, setReferenceNumber] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [autoPrintNota, setAutoPrintNota] = useState<boolean>(true);
@@ -48,18 +49,32 @@ export const CashierPaymentModal: React.FC = () => {
     setCashTendered(amount);
   };
 
+  const currentStudent = students.find(
+    (s) => s.id === bill.studentId || (bill.studentNis && s.nis === bill.studentNis)
+  );
+
   const getVaNumber = (bank: string, nis: string) => {
+    if (bank === 'BRI') {
+      const isSpp = bill.billTypeName.includes('SPP');
+      const isKeg = bill.billTypeName.includes('Kegiatan');
+      const isEks = bill.billTypeName.includes('Ekstrakurikuler') || bill.billTypeName.includes('Ekskul');
+
+      if (isKeg && currentStudent?.brivaKegiatan) return currentStudent.brivaKegiatan;
+      if (isEks && currentStudent?.brivaEkskul) return currentStudent.brivaEkskul;
+      if (currentStudent?.brivaSpp) return currentStudent.brivaSpp;
+      if (currentStudent?.vaNumber) return currentStudent.vaNumber;
+      return `108102247000${nis.slice(-3)}`;
+    }
+
     switch (bank) {
       case 'BCA':
         return `12345${nis}`;
       case 'MANDIRI':
         return `88012${nis}`;
-      case 'BRI':
-        return `10293${nis}`;
       case 'BNI':
         return `98811${nis}`;
       default:
-        return `88012${nis}`;
+        return `108102247000${nis.slice(-3)}`;
     }
   };
 
@@ -352,7 +367,18 @@ export const CashierPaymentModal: React.FC = () => {
 
               <div className="bg-white p-3.5 rounded-lg border border-slate-200 flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] text-slate-500 font-medium">Nomor Virtual Account {selectedBank}</p>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <p className="text-[11px] text-slate-500 font-medium">Nomor Virtual Account {selectedBank}</p>
+                    {selectedBank === 'BRI' && (
+                      <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.2 rounded">
+                        {bill.billTypeName.includes('SPP')
+                          ? 'Kode 5733 (SPP Tetap)'
+                          : bill.billTypeName.includes('Kegiatan')
+                          ? 'Kode 5747 (Uang Kegiatan)'
+                          : 'Kode 14172 (Ekskul)'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-base font-mono font-extrabold text-blue-900 tracking-wider">
                     {activeVaNumber}
                   </p>

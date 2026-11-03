@@ -97,21 +97,44 @@ export const StudentsView: React.FC = () => {
   const [tariffSearch, setTariffSearch] = useState<string>('');
   const [quickSppValues, setQuickSppValues] = useState<Record<string, number>>({});
 
+  const handleCopyBriva = (val: string, key: string) => {
+    if (!val) return;
+    navigator.clipboard.writeText(val);
+    setCopiedBriva(key);
+    setTimeout(() => setCopiedBriva(null), 2000);
+  };
+
+  const handleSyncToFirestore = async () => {
+    setIsSyncingCloud(true);
+    try {
+      await syncAllStudentsToCloud();
+      alert(`Berhasil menyinkronkan seluruh ${students.length} data siswa beserta 3 nomor Virtual Account BRIVA ke Cloud Firestore.`);
+    } catch (err: any) {
+      alert(`Gagal menyinkronkan ke Cloud Firestore: ${err.message || 'Terjadi kesalahan'}`);
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setName('');
     setNis('');
     setNisn('');
-    setGrade('Kelas 1A');
+    setGrade('1.1');
     setGender('L');
     setParentName('');
     setParentPhone('');
     setParentEmail('');
     setAddress('');
+    setCustomerIdBri('');
+    setBrivaSpp('');
+    setBrivaKegiatan('');
+    setBrivaEkskul('');
     setVaNumber('');
     setStatus('AKTIF');
     setExtracurriculars([]);
-    setExtracurricularFee(250000);
+    setExtracurricularFee(200000);
     setCustomSppAmount(350000);
     setCustomActivityFee(1200000);
   };
@@ -133,7 +156,11 @@ export const StudentsView: React.FC = () => {
     // Generate next NIS suggestion
     const nextNisNum = 260100 + students.length + 1;
     setNis(String(nextNisNum));
-    setVaNumber(`88012${nextNisNum}`);
+    setCustomerIdBri(String(nextNisNum));
+    setBrivaSpp(`108102247000${String(nextNisNum).slice(-3)}`);
+    setBrivaKegiatan(`108102247000${(parseInt(String(nextNisNum).slice(-3) || '1', 10) + 400).toString()}`);
+    setBrivaEkskul(`108102247000${(parseInt(String(nextNisNum).slice(-3) || '1', 10) + 900).toString()}`);
+    setVaNumber(`108102247000${String(nextNisNum).slice(-3)}`);
     setIsModalOpen(true);
   };
 
@@ -142,16 +169,20 @@ export const StudentsView: React.FC = () => {
     setName(s.name);
     setNis(s.nis);
     setNisn(s.nisn);
-    setGrade(s.grade);
+    setGrade(normalizeGrade(s.grade));
     setGender(s.gender);
     setParentName(s.parentName);
     setParentPhone(s.parentPhone);
     setParentEmail(s.parentEmail);
     setAddress(s.address);
-    setVaNumber(s.vaNumber);
+    setCustomerIdBri(s.customerIdBri || s.nis);
+    setBrivaSpp(s.brivaSpp || s.vaNumber || `108102247000${s.nis.slice(-3)}`);
+    setBrivaKegiatan(s.brivaKegiatan || `108102247000${(parseInt(s.nis.slice(-3) || '1', 10) + 400).toString()}`);
+    setBrivaEkskul(s.brivaEkskul || `108102247000${(parseInt(s.nis.slice(-3) || '1', 10) + 900).toString()}`);
+    setVaNumber(s.brivaSpp || s.vaNumber || `108102247000${s.nis.slice(-3)}`);
     setStatus(s.status);
     setExtracurriculars(s.extracurriculars ? [...s.extracurriculars] : []);
-    setExtracurricularFee(s.extracurricularFee ?? 250000);
+    setExtracurricularFee(s.extracurricularFee ?? 200000);
     setCustomSppAmount(s.customSppAmount ?? 350000);
     setCustomActivityFee(s.customActivityFee ?? 1200000);
     setIsModalOpen(true);
@@ -168,13 +199,17 @@ export const StudentsView: React.FC = () => {
       name,
       nis,
       nisn,
-      grade,
+      grade: normalizeGrade(grade),
       gender,
       parentName,
       parentPhone,
       parentEmail,
       address,
-      vaNumber: vaNumber || `88012${nis}`,
+      customerIdBri: customerIdBri || nis,
+      brivaSpp: brivaSpp || `108102247000${nis.slice(-3)}`,
+      brivaKegiatan: brivaKegiatan || `108102247000${(parseInt(nis.slice(-3) || '1', 10) + 400).toString()}`,
+      brivaEkskul: brivaEkskul || `108102247000${(parseInt(nis.slice(-3) || '1', 10) + 900).toString()}`,
+      vaNumber: brivaSpp || vaNumber || `108102247000${nis.slice(-3)}`,
       status,
       extracurriculars,
       extracurricularFee,
@@ -198,28 +233,18 @@ export const StudentsView: React.FC = () => {
       const q = search.toLowerCase();
       const matchName = s.name.toLowerCase().includes(q);
       const matchNis = s.nis.includes(q);
+      const matchCustId = s.customerIdBri ? s.customerIdBri.includes(q) : false;
+      const matchSpp = s.brivaSpp ? s.brivaSpp.includes(q) : false;
+      const matchKeg = s.brivaKegiatan ? s.brivaKegiatan.includes(q) : false;
+      const matchEks = s.brivaEkskul ? s.brivaEkskul.includes(q) : false;
       const matchParent = s.parentName.toLowerCase().includes(q);
       const matchPhone = s.parentPhone.includes(q);
-      if (!matchName && !matchNis && !matchParent && !matchPhone) return false;
+      if (!matchName && !matchNis && !matchCustId && !matchSpp && !matchKeg && !matchEks && !matchParent && !matchPhone) return false;
     }
     return true;
   });
 
-  const allGrades = [
-    'Semua Kelas',
-    'Kelas 1A',
-    'Kelas 1B',
-    'Kelas 2A',
-    'Kelas 2B',
-    'Kelas 3A',
-    'Kelas 3B',
-    'Kelas 4A',
-    'Kelas 4B',
-    'Kelas 5A',
-    'Kelas 5B',
-    'Kelas 6A',
-    'Kelas 6B',
-  ];
+  const allGrades = ['Semua Kelas', ...SCHOOL_GRADES];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -340,6 +365,18 @@ export const StudentsView: React.FC = () => {
             </>
           )}
 
+          {/* Cloud Firestore Sync Button */}
+          <button
+            type="button"
+            disabled={isSyncingCloud}
+            onClick={handleSyncToFirestore}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            title="Sinkronkan seluruh 212 siswa beserta 3 nomor VA BRIVA ke database Cloud Firestore"
+          >
+            <CloudUpload className={`w-3.5 h-3.5 text-blue-800 ${isSyncingCloud ? 'animate-bounce' : ''}`} />
+            <span>{isSyncingCloud ? 'Menyinkronkan...' : `Sinkronkan ${students.length} Siswa ke Cloud`}</span>
+          </button>
+
           <button
             onClick={() => {
               setParsedStudents([]);
@@ -432,21 +469,28 @@ export const StudentsView: React.FC = () => {
                     className="rounded border-slate-300"
                   />
                 </th>
-                <th className="py-3 px-4">Nama Siswa & NIS</th>
-                <th className="py-3 px-4">Kelas / JK</th>
-                <th className="py-3 px-4">Pilihan Ekskul (Maks 2) & Tarif</th>
-                <th className="py-3 px-4">Orang Tua / Wali</th>
-                <th className="py-3 px-4">No. WhatsApp Orang Tua</th>
-                <th className="py-3 px-4">Email Orang Tua</th>
-                <th className="py-3 px-4">Nomor VA Mandiri</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Aksi</th>
+                <th className="py-3 px-3">Nama Siswa & ID BRI</th>
+                <th className="py-3 px-2 text-center">Kelas</th>
+                <th className="py-3 px-3">Pilihan Ekskul & Tarif</th>
+                <th className="py-3 px-3">Orang Tua / Wali</th>
+                <th className="py-3 px-3">Kontak WA</th>
+                <th className="py-3 px-3">
+                  <span className="text-blue-900 font-bold block">1. VA SPP (5733)</span>
+                </th>
+                <th className="py-3 px-3">
+                  <span className="text-amber-900 font-bold block">2. VA Kegiatan (5747)</span>
+                </th>
+                <th className="py-3 px-3">
+                  <span className="text-emerald-900 font-bold block">3. VA Ekskul (14172)</span>
+                </th>
+                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 px-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-500">
+                  <td colSpan={11} className="py-8 text-center text-slate-500">
                     Tidak ada siswa yang ditemukan.
                   </td>
                 </tr>
@@ -456,6 +500,10 @@ export const StudentsView: React.FC = () => {
                   const hasOverdue = studentBills.some((b) => b.status === 'MENUNGGAK');
                   const phone = normalizeWhatsAppNumber(s.parentPhone);
                   const isSelected = selectedStudentIds.includes(s.id);
+
+                  const sppVa = s.brivaSpp || s.vaNumber || `108102247000${s.nis.slice(-3)}`;
+                  const kegVa = s.brivaKegiatan || `108102247000${(parseInt(s.nis.slice(-3) || '1', 10) + 400).toString()}`;
+                  const eksVa = s.brivaEkskul || `108102247000${(parseInt(s.nis.slice(-3) || '1', 10) + 900).toString()}`;
 
                   return (
                     <tr key={s.id} className={`hover:bg-slate-50/60 transition-colors ${isSelected ? 'bg-blue-50/40' : ''}`}>
@@ -472,19 +520,25 @@ export const StudentsView: React.FC = () => {
                         />
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <p className="font-bold text-slate-900">{s.name}</p>
-                        <p className="text-[11px] font-mono text-slate-500">
-                          NIS: {s.nis} · NISN: {s.nisn || '-'}
-                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono mt-0.5">
+                          <span>NIS: {s.nis}</span>
+                          <span>·</span>
+                          <span>ID BRI: <strong className="text-blue-900 font-bold">{s.customerIdBri || s.nis}</strong></span>
+                        </div>
                       </td>
 
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-slate-800">{s.grade}</span>
-                        <span className="text-slate-400 ml-1">({s.gender === 'L' ? 'Laki-laki' : 'Perempuan'})</span>
+                      <td className="py-3 px-2 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                          {s.grade}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          {s.gender === 'L' ? 'Laki-laki' : 'Perempuan'}
+                        </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         {s.extracurriculars && s.extracurriculars.length > 0 ? (
                           <div className="space-y-1">
                             <div className="flex flex-wrap gap-1">
@@ -498,50 +552,110 @@ export const StudentsView: React.FC = () => {
                               ))}
                             </div>
                             <p className="text-[10px] text-slate-600 font-mono">
-                              Biaya Ekskul: <strong className="text-blue-900">{formatRupiah(s.extracurricularFee ?? 250000)}</strong>
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-mono">
-                              SPP Manual: <strong className="text-slate-800">{formatRupiah(s.customSppAmount ?? 350000)}</strong>
+                              Tarif Ekskul: <strong className="text-blue-900">{formatRupiah(s.extracurricularFee ?? 200000)}</strong>
                             </p>
                           </div>
                         ) : (
                           <div className="space-y-0.5">
                             <span className="text-[11px] text-slate-400 italic">Belum Memilih Ekskul</span>
-                            <p className="text-[10px] text-slate-400 font-mono">Tarif: {formatRupiah(s.extracurricularFee ?? 250000)}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">Tarif: {formatRupiah(s.extracurricularFee ?? 200000)}</p>
                           </div>
                         )}
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <p className="font-medium text-slate-900">{s.parentName}</p>
-                        <p className="text-[10px] text-slate-500 truncate max-w-xs">{s.address || '-'}</p>
+                        <p className="text-[10px] text-slate-500 truncate max-w-[140px]">{s.address || '-'}</p>
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <a
                           href={`https://wa.me/${phone}`}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 font-mono font-medium text-emerald-700 hover:underline"
                         >
-                          <Phone className="w-3 h-3 text-emerald-600" />
-                          {s.parentPhone}
+                          <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span className="truncate max-w-[100px]">{s.parentPhone}</span>
                         </a>
                       </td>
 
-                      <td className="py-3 px-4 text-slate-600">
-                        {s.parentEmail ? (
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            <span className="truncate max-w-[150px]">{s.parentEmail}</span>
+                      {/* 1. VA SPP */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center justify-between gap-1 bg-blue-50/70 px-2 py-1.5 rounded-lg border border-blue-200">
+                          <div className="min-w-0">
+                            <span className="font-mono font-bold text-blue-950 text-xs tracking-wider block truncate">
+                              {sppVa}
+                            </span>
+                            <span className="text-[10px] text-blue-700 font-medium">
+                              SPP: {formatRupiah(s.customSppAmount || 350000)}
+                            </span>
                           </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBriva(sppVa, `${s.id}-table-spp`)}
+                            className="p-1 hover:bg-blue-100 rounded text-blue-800 transition-colors shrink-0 cursor-pointer"
+                            title="Salin VA SPP"
+                          >
+                            {copiedBriva === `${s.id}-table-spp` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
                       </td>
 
-                      <td className="py-3 px-4 font-mono font-medium text-blue-900">
-                        {s.vaNumber || `88012${s.nis}`}
+                      {/* 2. VA Kegiatan */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center justify-between gap-1 bg-amber-50/70 px-2 py-1.5 rounded-lg border border-amber-200">
+                          <div className="min-w-0">
+                            <span className="font-mono font-bold text-amber-950 text-xs tracking-wider block truncate">
+                              {kegVa}
+                            </span>
+                            <span className="text-[10px] text-amber-800 font-medium">
+                              Kegiatan: {formatRupiah(s.customActivityFee || 1200000)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBriva(kegVa, `${s.id}-table-keg`)}
+                            className="p-1 hover:bg-amber-100 rounded text-amber-800 transition-colors shrink-0 cursor-pointer"
+                            title="Salin VA Kegiatan"
+                          >
+                            {copiedBriva === `${s.id}-table-keg` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* 3. VA Ekskul */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center justify-between gap-1 bg-emerald-50/70 px-2 py-1.5 rounded-lg border border-emerald-200">
+                          <div className="min-w-0">
+                            <span className="font-mono font-bold text-emerald-950 text-xs tracking-wider block truncate">
+                              {eksVa}
+                            </span>
+                            <span className="text-[10px] text-emerald-800 font-medium">
+                              Ekskul: {formatRupiah(s.extracurricularFee || 200000)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBriva(eksVa, `${s.id}-table-eks`)}
+                            className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0 cursor-pointer"
+                            title="Salin VA Ekskul"
+                          >
+                            {copiedBriva === `${s.id}-table-eks` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       <td className="py-3 px-4 text-center">
@@ -791,17 +905,73 @@ export const StudentsView: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      Nomor Virtual Account Bank Khusus Siswa
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: 88012260101"
-                      value={vaNumber}
-                      onChange={(e) => setVaNumber(e.target.value)}
-                      className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600"
-                    />
+                  {/* 3 Nomor Virtual Account Bank BRI (BRIVA) & ID Pelanggan */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard className="w-4 h-4 text-blue-800" />
+                      <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        3 Nomor Virtual Account Bank BRI (BRIVA) Siswa
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 block mb-1">
+                          ID Pelanggan BRI (BRIVA)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 108102247000101 atau NIS"
+                          value={customerIdBri}
+                          onChange={(e) => setCustomerIdBri(e.target.value)}
+                          className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 bg-slate-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-blue-900 block mb-1">
+                          1. Nomor BRIVA SPP (Kode 5733)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 108102247000101"
+                          value={brivaSpp}
+                          onChange={(e) => {
+                            setBrivaSpp(e.target.value);
+                            setVaNumber(e.target.value);
+                          }}
+                          className="w-full text-xs font-mono px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 bg-blue-50/50"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-amber-900 block mb-1">
+                          2. Nomor BRIVA Kegiatan (Kode 5747)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 108102247000501"
+                          value={brivaKegiatan}
+                          onChange={(e) => setBrivaKegiatan(e.target.value)}
+                          className="w-full text-xs font-mono px-3 py-2 border border-amber-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-600 bg-amber-50/50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-emerald-900 block mb-1">
+                          3. Nomor BRIVA Ekskul (Kode 14172)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 108102247001001"
+                          value={brivaEkskul}
+                          onChange={(e) => setBrivaEkskul(e.target.value)}
+                          className="w-full text-xs font-mono px-3 py-2 border border-emerald-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-emerald-50/50"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -39,7 +39,7 @@ export const ParentPortalView: React.FC = () => {
 
   // Active sub-tab for Parent Portal
   const [activeSubTab, setActiveSubTab] = useState<'TAGIHAN' | 'HISTORY'>('TAGIHAN');
-  const [copiedVa, setCopiedVa] = useState(false);
+  const [copiedVaKey, setCopiedVaKey] = useState<string | null>(null);
   const [selectedStudentIdOverride, setSelectedStudentIdOverride] = useState<string>('');
   const [linkingChild, setLinkingChild] = useState<Student | null>(null);
 
@@ -126,12 +126,13 @@ export const ParentPortalView: React.FC = () => {
   const totalUnpaidAmount = unpaidBills.reduce((acc, b) => acc + (b.amount - b.paidAmount), 0);
   const totalPaidAmount = studentTransactions.reduce((acc, tx) => acc + tx.amount, 0);
 
-  const vaNumber = matchedStudent?.vaNumber || (matchedStudent ? `88012${matchedStudent.nis}` : '8801200000');
+  const vaNumber = matchedStudent?.brivaSpp || matchedStudent?.vaNumber || (matchedStudent ? `108102247000${matchedStudent.nis.slice(-3)}` : '108102247000000');
 
-  const handleCopyVa = () => {
-    navigator.clipboard.writeText(vaNumber);
-    setCopiedVa(true);
-    setTimeout(() => setCopiedVa(false), 2000);
+  const handleCopyVa = (textToCopy?: string, key: string = 'spp') => {
+    const val = textToCopy || vaNumber;
+    navigator.clipboard.writeText(val);
+    setCopiedVaKey(key);
+    setTimeout(() => setCopiedVaKey(null), 2000);
   };
 
   return (
@@ -299,12 +300,12 @@ export const ParentPortalView: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyVa(matchedStudent.brivaSpp || matchedStudent.vaNumber || `108102247000${matchedStudent.nis.slice(-3)}`)}
+                    onClick={() => handleCopyVa(matchedStudent.brivaSpp || matchedStudent.vaNumber || `108102247000${matchedStudent.nis.slice(-3)}`, 'spp')}
                     className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-blue-800 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors cursor-pointer shrink-0"
                     title="Salin Nomor BRIVA SPP"
                   >
-                    {copiedVa ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedVa ? 'Tersalin' : 'Salin'}</span>
+                    {copiedVaKey === 'spp' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedVaKey === 'spp' ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
               </div>
@@ -337,12 +338,12 @@ export const ParentPortalView: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyVa(matchedStudent.brivaKegiatan || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 400).toString()}`)}
+                    onClick={() => handleCopyVa(matchedStudent.brivaKegiatan || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 400).toString()}`, 'kegiatan')}
                     className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors cursor-pointer shrink-0"
                     title="Salin Nomor BRIVA Uang Kegiatan"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Salin</span>
+                    {copiedVaKey === 'kegiatan' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedVaKey === 'kegiatan' ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
               </div>
@@ -375,12 +376,12 @@ export const ParentPortalView: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleCopyVa(matchedStudent.brivaEkskul || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 900).toString()}`)}
+                    onClick={() => handleCopyVa(matchedStudent.brivaEkskul || `108102247000${(parseInt(matchedStudent.nis.slice(-3) || '1', 10) + 900).toString()}`, 'ekskul')}
                     className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors cursor-pointer shrink-0"
                     title="Salin Nomor BRIVA Ekskul"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Salin</span>
+                    {copiedVaKey === 'ekskul' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedVaKey === 'ekskul' ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
               </div>
@@ -601,10 +602,10 @@ export const ParentPortalView: React.FC = () => {
 
                 <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
                   <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <span>2. Transfer Virtual Account Mandiri</span>
+                    <span>2. Transfer Virtual Account Bank BRI (BRIVA)</span>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Transfer ke nomor VA: <strong className="font-mono text-blue-900">{vaNumber}</strong> melalui ATM Mandiri, aplikasi Livin' by Mandiri, atau transfer dari bank lain (pilih Bank Mandiri kode 008).
+                    Transfer ke nomor Virtual Account Bank BRI (BRIVA) sesuai jenis tagihan: <strong>BRIVA SPP</strong> (kode 5733), <strong>BRIVA Uang Kegiatan</strong> (kode 5747), atau <strong>BRIVA Ekskul</strong> (kode 14172). Dapat dibayar via aplikasi BRImo, ATM BRI, Agen BRILink, atau Transfer Antar-Bank (pilih Bank BRI / kode 002).
                   </p>
                 </div>
               </div>

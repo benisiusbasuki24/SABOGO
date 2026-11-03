@@ -39,37 +39,48 @@ export const AdminDataPurgeModal: React.FC = () => {
 
   const [confirmInput, setConfirmInput] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isPurging, setIsPurging] = useState<string | null>(null);
 
   if (!isDataPurgeModalOpen) return null;
 
   const isAdmin = currentUser?.role === 'ADMIN';
   if (!isAdmin) return null;
 
-  const handlePurge = (
+  const handlePurge = async (
     module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets',
     moduleName: string
   ) => {
-    if (window.confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin MENGHAPUS SEMUA DATA ${moduleName.toUpperCase()}?\nData yang dihapus tidak dapat dipulihkan kembali.`)) {
-      purgeModuleData(module);
-      setSuccessMessage(`Seluruh data ${moduleName} berhasil dikosongkan.`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+    if (window.confirm(`⚠️ PERINGATAN: Apakah Anda yakin ingin MENGHAPUS SEMUA DATA ${moduleName.toUpperCase()}?\nData yang dihapus akan dibersihkan permanen dari Cloud Firestore dan tidak dapat dipulihkan.`)) {
+      try {
+        setIsPurging(module);
+        await purgeModuleData(module);
+        setSuccessMessage(`Seluruh data ${moduleName} berhasil dikosongkan permanen dari Cloud Firestore.`);
+        setTimeout(() => setSuccessMessage(null), 3500);
+      } finally {
+        setIsPurging(null);
+      }
     }
   };
 
-  const handlePurgeAll = () => {
+  const handlePurgeAll = async () => {
     if (confirmInput.trim().toUpperCase() !== 'HAPUS') {
       alert('Ketik kata "HAPUS" pada kolom konfirmasi untuk melanjutkan.');
       return;
     }
 
-    if (window.confirm('⚠️ KONFIRMASI TERAKHIR: Seluruh data (Siswa, Tagihan, Kwitansi, Guru, Slip, Dokumen Ajar, dan Inventaris) akan DIHAPUS TOTAL menjadi kosong.\n\nLanjutkan?')) {
-      purgeModuleData('all');
-      setConfirmInput('');
-      setSuccessMessage('Seluruh data aplikasi SIBOGO berhasil dikosongkan total.');
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setIsDataPurgeModalOpen(false);
-      }, 2000);
+    if (window.confirm('⚠️ KONFIRMASI TERAKHIR: Seluruh data (Siswa, Tagihan, Kwitansi, Guru, Slip, Dokumen Ajar, dan Inventaris) akan DIHAPUS TOTAL dari Cloud Firestore.\n\nLanjutkan?')) {
+      try {
+        setIsPurging('all');
+        await purgeModuleData('all');
+        setConfirmInput('');
+        setSuccessMessage('Seluruh data aplikasi SIBOGO berhasil dikosongkan total dari Cloud Firestore.');
+        setTimeout(() => {
+          setSuccessMessage(null);
+          setIsDataPurgeModalOpen(false);
+        }, 2000);
+      } finally {
+        setIsPurging(null);
+      }
     }
   };
 
@@ -125,6 +136,13 @@ export const AdminDataPurgeModal: React.FC = () => {
             <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>{successMessage}</span>
+            </div>
+          )}
+
+          {isPurging && (
+            <div className="p-3.5 bg-blue-50 border border-blue-300 rounded-xl text-blue-900 font-semibold flex items-center gap-3 animate-pulse">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+              <span>Sedang menghapus data dari Cloud Firestore, mohon tunggu sebentar...</span>
             </div>
           )}
 

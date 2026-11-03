@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { AuthUser, EmploymentStatus, Student, UserRole } from '../types';
+import { AuthUser, EmploymentStatus, Student, UserRole, UserApprovalStatus, requiresSuperAdminModeration } from '../types';
 import { StudentPicker } from './StudentPicker';
 import { generateUniqueUserCode } from '../utils/uniqueCode';
 import {
@@ -10,6 +10,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  Clock,
   CreditCard,
   Edit3,
   Eye,
@@ -34,6 +35,7 @@ import {
   UserPlus,
   Users,
   X,
+  XCircle,
 } from 'lucide-react';
 
 export const UserRegisterView: React.FC = () => {
@@ -44,6 +46,8 @@ export const UserRegisterView: React.FC = () => {
     adminUpdateUser,
     adminDeleteUser,
     registerUser,
+    moderateUserRegistration,
+    moderateBulkUserRegistrations,
     setActiveTab,
     setMainMenu,
     students,
@@ -52,6 +56,7 @@ export const UserRegisterView: React.FC = () => {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   // Password visibility map: { [userId]: boolean }
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
@@ -60,6 +65,8 @@ export const UserRegisterView: React.FC = () => {
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
   const [deletingUser, setDeletingUser] = useState<AuthUser | null>(null);
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [rejectingUser, setRejectingUser] = useState<AuthUser | null>(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
 
   // Loading & Toast feedback
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +95,8 @@ export const UserRegisterView: React.FC = () => {
   const [editStudentNis, setEditStudentNis] = useState('');
   const [editStudentGrade, setEditStudentGrade] = useState('1.1');
   const [editUniqueCode, setEditUniqueCode] = useState('');
+  const [editStatus, setEditStatus] = useState<UserApprovalStatus>('APPROVED');
+  const [editRejectionReason, setEditRejectionReason] = useState('');
 
   // Add User Form States
   const [newName, setNewName] = useState('');
@@ -129,11 +138,17 @@ export const UserRegisterView: React.FC = () => {
     );
   }
 
-  // Filter users based on search query and role filter
+  // Filter users based on search query, role filter, and status filter
   const filteredUsers = useMemo(() => {
     return registeredUsers.filter((user) => {
       // Role filter
       if (selectedRole !== 'ALL' && user.role !== selectedRole) {
+        return false;
+      }
+
+      // Status filter
+      const userStatus = user.status || 'APPROVED';
+      if (selectedStatus !== 'ALL' && userStatus !== selectedStatus) {
         return false;
       }
 
@@ -163,9 +178,9 @@ export const UserRegisterView: React.FC = () => {
 
       return true;
     });
-  }, [registeredUsers, searchQuery, selectedRole]);
+  }, [registeredUsers, searchQuery, selectedRole, selectedStatus]);
 
-  // Role Statistics Calculation
+  // Statistics Calculation
   const stats = useMemo(() => {
     const total = registeredUsers.length;
     const adminCount = registeredUsers.filter((u) => u.role === 'ADMIN').length;
@@ -176,6 +191,12 @@ export const UserRegisterView: React.FC = () => {
     const staffCount = registeredUsers.filter((u) => u.role === 'STAFF').length;
     const ortuCount = registeredUsers.filter((u) => u.role === 'ORANG_TUA').length;
 
+    // Status counts
+    const pendingUsers = registeredUsers.filter((u) => u.status === 'PENDING');
+    const pendingCount = pendingUsers.length;
+    const approvedCount = registeredUsers.filter((u) => !u.status || u.status === 'APPROVED').length;
+    const rejectedCount = registeredUsers.filter((u) => u.status === 'REJECTED').length;
+
     return {
       total,
       adminCount,
@@ -185,6 +206,10 @@ export const UserRegisterView: React.FC = () => {
       guruCount,
       staffCount,
       ortuCount,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      pendingUsers,
     };
   }, [registeredUsers]);
 
@@ -193,6 +218,69 @@ export const UserRegisterView: React.FC = () => {
       ...prev,
       [userId]: !prev[userId],
     }));
+  };
+
+  const handleModerateSingle = async (
+    targetUser: AuthUser,
+    status: UserApprovalStatus,
+    reason?: string
+  ) => {
+    setIsSubmitting(true);
+    try {
+      const res = await moderateUserRegistration(targetUser.id, status, reason);
+      if (res.success) {
+        setFeedbackMessage({
+          type: 'success',
+          text: res.message,
+        });
+        setRejectingUser(null);
+        setRejectionReasonText('');
+      } else {
+        setFeedbackMessage({
+          type: 'error',
+          text: res.message,
+        });
+      }
+    } catch {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Terjadi kendala saat memoderasi akun pengguna.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBulkApprovePending = async () => {
+    const pending = stats.pendingUsers;
+    if (pending.length === 0) return;
+
+    if (
+      window.confirm(
+        `Setujui dan aktifkan seluruh ${pending.length} akun yang sedang menunggu moderasi Super Administrator?`
+      )
+    ) {
+      setIsSubmitting(true);
+      try {
+        const res = await moderateBulkUserRegistrations(
+          pending.map((u) => u.id),
+          'APPROVED'
+        );
+        if (res.success) {
+          setFeedbackMessage({
+            type: 'success',
+            text: `Berhasil menyetujui ${res.count} akun pendaftaran. Seluruh akun kini berstatus aktif.`,
+          });
+        }
+      } catch {
+        setFeedbackMessage({
+          type: 'error',
+          text: 'Terjadi kendala saat menyetujui akun secara massal.',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const handleOpenEdit = (user: AuthUser) => {
@@ -216,6 +304,8 @@ export const UserRegisterView: React.FC = () => {
     setEditStudentNis(user.studentNis || '');
     setEditStudentGrade(user.studentGrade || '1.1');
     setEditUniqueCode(user.uniqueCode || generateUniqueUserCode(registeredUsers.map((u) => u.uniqueCode)));
+    setEditStatus(user.status || 'APPROVED');
+    setEditRejectionReason(user.rejectionReason || '');
     setFeedbackMessage(null);
   };
 
@@ -270,6 +360,10 @@ export const UserRegisterView: React.FC = () => {
         studentName: editRole === 'ORANG_TUA' ? editStudentName.trim() || undefined : undefined,
         studentNis: editRole === 'ORANG_TUA' ? editStudentNis.trim() || undefined : undefined,
         studentGrade: editRole === 'ORANG_TUA' ? editStudentGrade.trim() || undefined : undefined,
+        status: editStatus,
+        rejectionReason: editStatus === 'REJECTED' ? editRejectionReason.trim() || undefined : undefined,
+        moderatedBy: currentUser?.name || 'Benisius Rahmat Basuki (SuperAdmin)',
+        moderatedAt: editStatus !== (editingUser.status || 'APPROVED') ? new Date().toISOString() : editingUser.moderatedAt,
       };
 
       const res = await adminUpdateUser(updatedUser);
@@ -437,6 +531,33 @@ export const UserRegisterView: React.FC = () => {
     }
   };
 
+  const getStatusBadge = (status?: UserApprovalStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
+            <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+            Menunggu Moderasi
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+            <XCircle className="w-3 h-3 text-rose-600" />
+            Ditolak
+          </span>
+        );
+      case 'APPROVED':
+      default:
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            Disetujui / Aktif
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       
@@ -458,7 +579,7 @@ export const UserRegisterView: React.FC = () => {
             <span>User Register & Pengelolaan Akun</span>
           </h1>
           <p className="text-xs sm:text-sm text-blue-200 max-w-2xl leading-relaxed">
-            Daftar seluruh akun pengguna yang teregistrasi di sistem SIBOGO SD BOPKRI Gondolayu. Hanya dapat dilihat, diedit, dan dikelola oleh Super Administrator.
+            Daftar seluruh akun pengguna yang teregistrasi di sistem SIBOGO SD BOPKRI Gondolayu. Registrasi role <strong>Kepala Sekolah, Guru, Bendahara, Tata Usaha, dan Staf</strong> memerlukan moderasi Super Administrator sebelum aktif.
           </p>
         </div>
 
@@ -476,82 +597,204 @@ export const UserRegisterView: React.FC = () => {
         </button>
       </div>
 
-      {/* Global Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Total User
+      {/* Moderation Pending Notice Banner (if any) */}
+      {stats.pendingCount > 0 && (
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+              <Clock className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-black text-amber-950">
+                  {stats.pendingCount} Pendaftaran Akun Memerlukan Moderasi Super Admin
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-amber-950 shadow-2xs">
+                  Perlu Verifikasi
+                </span>
+              </div>
+              <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                Pendaftaran untuk role kepegawaian resmi (Kepala Sekolah, Guru, Bendahara, Tata Usaha, Staf) memerlukan persetujuan dari Anda (Benisius R.B). Akun berstatus "Menunggu Moderasi" belum dapat masuk ke sistem.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setSelectedStatus('PENDING')}
+              className="px-3.5 py-2 text-xs font-bold text-amber-950 bg-white border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
+            >
+              Lihat Antrean ({stats.pendingCount})
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleBulkApprovePending}
+              className="px-4 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Setujui Semua ({stats.pendingCount})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Moderation Status KPI Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          type="button"
+          onClick={() => setSelectedStatus('ALL')}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            selectedStatus === 'ALL'
+              ? 'bg-blue-900 text-white border-blue-900 shadow-md ring-2 ring-blue-600/30'
+              : 'bg-white border-slate-200 text-slate-900 hover:border-slate-300 shadow-xs'
+          }`}
+        >
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${selectedStatus === 'ALL' ? 'text-blue-200' : 'text-slate-400'}`}>
+            Total Akun
           </span>
-          <span className="text-xl font-black text-slate-900 mt-1 block">
+          <span className="text-2xl font-black mt-1 block">
             {stats.total}
           </span>
-          <span className="text-[10px] text-slate-500">Semua Peran</span>
-        </div>
+          <span className={`text-[10px] ${selectedStatus === 'ALL' ? 'text-blue-200' : 'text-slate-500'}`}>
+            Semua pengguna terdaftar
+          </span>
+        </button>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-rose-200 shadow-xs">
+        <button
+          type="button"
+          onClick={() => setSelectedStatus('PENDING')}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+            selectedStatus === 'PENDING'
+              ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-md ring-2 ring-amber-400/40'
+              : 'bg-white border-amber-200 text-slate-900 hover:border-amber-300 shadow-xs'
+          }`}
+        >
+          {stats.pendingCount > 0 && (
+            <span className="absolute top-2 right-2 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+          )}
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${selectedStatus === 'PENDING' ? 'text-amber-950' : 'text-amber-600'}`}>
+            Menunggu Moderasi
+          </span>
+          <span className="text-2xl font-black mt-1 block">
+            {stats.pendingCount}
+          </span>
+          <span className={`text-[10px] ${selectedStatus === 'PENDING' ? 'text-amber-950 font-bold' : 'text-amber-700'}`}>
+            Memerlukan persetujuan
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedStatus('APPROVED')}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            selectedStatus === 'APPROVED'
+              ? 'bg-emerald-700 text-white border-emerald-800 shadow-md ring-2 ring-emerald-500/30'
+              : 'bg-white border-emerald-200 text-slate-900 hover:border-emerald-300 shadow-xs'
+          }`}
+        >
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${selectedStatus === 'APPROVED' ? 'text-emerald-100' : 'text-emerald-600'}`}>
+            Disetujui / Aktif
+          </span>
+          <span className="text-2xl font-black mt-1 block">
+            {stats.approvedCount}
+          </span>
+          <span className={`text-[10px] ${selectedStatus === 'APPROVED' ? 'text-emerald-100' : 'text-emerald-700'}`}>
+            Dapat masuk ke aplikasi
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedStatus('REJECTED')}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            selectedStatus === 'REJECTED'
+              ? 'bg-rose-700 text-white border-rose-800 shadow-md ring-2 ring-rose-500/30'
+              : 'bg-white border-rose-200 text-slate-900 hover:border-rose-300 shadow-xs'
+          }`}
+        >
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${selectedStatus === 'REJECTED' ? 'text-rose-100' : 'text-rose-500'}`}>
+            Ditolak
+          </span>
+          <span className="text-2xl font-black mt-1 block">
+            {stats.rejectedCount}
+          </span>
+          <span className={`text-[10px] ${selectedStatus === 'REJECTED' ? 'text-rose-100' : 'text-rose-600'}`}>
+            Pendaftaran tidak disetujui
+          </span>
+        </button>
+      </div>
+
+      {/* Global Stat Cards by Role */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+        <div className="bg-white p-3 rounded-2xl border border-rose-200 shadow-xs">
           <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block">
             Admin
           </span>
-          <span className="text-xl font-black text-rose-900 mt-1 block">
+          <span className="text-lg font-black text-rose-900 mt-0.5 block">
             {stats.adminCount}
           </span>
-          <span className="text-[10px] text-rose-600">Super Administrator</span>
+          <span className="text-[9px] text-rose-600">Super Administrator</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-purple-200 shadow-xs">
+        <div className="bg-white p-3 rounded-2xl border border-purple-200 shadow-xs">
           <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wider block">
             Kepsek
           </span>
-          <span className="text-xl font-black text-purple-900 mt-1 block">
+          <span className="text-lg font-black text-purple-900 mt-0.5 block">
             {stats.kepsekCount}
           </span>
-          <span className="text-[10px] text-purple-600">Persetujuan & Approval</span>
+          <span className="text-[9px] text-purple-600">Otoritas Validasi</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-amber-200 shadow-xs">
+        <div className="bg-white p-3 rounded-2xl border border-amber-200 shadow-xs">
           <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
             Bendahara
           </span>
-          <span className="text-xl font-black text-amber-900 mt-1 block">
+          <span className="text-lg font-black text-amber-900 mt-0.5 block">
             {stats.bendaharaCount}
           </span>
-          <span className="text-[10px] text-amber-700">Keuangan & Gaji</span>
+          <span className="text-[9px] text-amber-700">Keuangan & Gaji</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-cyan-200 shadow-xs">
+        <div className="bg-white p-3 rounded-2xl border border-cyan-200 shadow-xs">
           <span className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider block">
             Tata Usaha
           </span>
-          <span className="text-xl font-black text-cyan-900 mt-1 block">
+          <span className="text-lg font-black text-cyan-900 mt-0.5 block">
             {stats.tuCount}
           </span>
-          <span className="text-[10px] text-cyan-700">Kasir, Siswa & SPMB</span>
+          <span className="text-[9px] text-cyan-700">Kasir, Siswa & SPMB</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-emerald-200 shadow-xs">
+        <div className="bg-white p-3 rounded-2xl border border-emerald-200 shadow-xs">
           <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
             Guru Pendidik
           </span>
-          <span className="text-xl font-black text-emerald-900 mt-1 block">
+          <span className="text-lg font-black text-emerald-900 mt-0.5 block">
             {stats.guruCount}
           </span>
-          <span className="text-[10px] text-emerald-700">Modul & Slip Gaji</span>
+          <span className="text-[9px] text-emerald-700">Modul & Slip Gaji</span>
         </div>
 
-        <div className="bg-white p-3.5 rounded-2xl border border-blue-200 shadow-xs">
+        <div className="bg-white p-3 rounded-2xl border border-blue-200 shadow-xs">
           <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
             Orang Tua
           </span>
-          <span className="text-xl font-black text-blue-900 mt-1 block">
+          <span className="text-lg font-black text-blue-900 mt-0.5 block">
             {stats.ortuCount}
           </span>
-          <span className="text-[10px] text-blue-700">Portal Tagihan Anak</span>
+          <span className="text-[9px] text-blue-700">Portal Tagihan Siswa</span>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-96">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="relative w-full md:w-80">
           <input
             type="text"
             placeholder="Cari nama, username, email, NIP, nama murid..."
@@ -570,25 +813,42 @@ export const UserRegisterView: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span>Status:</span>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-slate-800 cursor-pointer"
+            >
+              <option value="ALL">Semua Status ({registeredUsers.length})</option>
+              <option value="PENDING">Menunggu Moderasi ({stats.pendingCount})</option>
+              <option value="APPROVED">Disetujui / Aktif ({stats.approvedCount})</option>
+              <option value="REJECTED">Ditolak ({stats.rejectedCount})</option>
+            </select>
+          </div>
+
+          {/* Role Filter */}
           <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <span>Filter Peran:</span>
+            <span>Peran:</span>
+            <select
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-slate-800 cursor-pointer"
+            >
+              <option value="ALL">Semua Peran ({registeredUsers.length})</option>
+              <option value="ADMIN">Super Admin ({stats.adminCount})</option>
+              <option value="KEPALA_SEKOLAH">Kepala Sekolah ({stats.kepsekCount})</option>
+              <option value="BENDAHARA">Bendahara Sekolah ({stats.bendaharaCount})</option>
+              <option value="TATA_USAHA">Kasir & Tata Usaha ({stats.tuCount})</option>
+              <option value="GURU">Guru Pendidik ({stats.guruCount})</option>
+              <option value="STAFF">Staf / Karyawan ({stats.staffCount})</option>
+              <option value="ORANG_TUA">Orang Tua Murid ({stats.ortuCount})</option>
+            </select>
           </div>
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-600 font-bold text-slate-800 cursor-pointer"
-          >
-            <option value="ALL">Semua Peran ({registeredUsers.length})</option>
-            <option value="ADMIN">Super Admin ({stats.adminCount})</option>
-            <option value="KEPALA_SEKOLAH">Kepala Sekolah ({stats.kepsekCount})</option>
-            <option value="BENDAHARA">Bendahara Sekolah ({stats.bendaharaCount})</option>
-            <option value="TATA_USAHA">Kasir & Tata Usaha ({stats.tuCount})</option>
-            <option value="GURU">Guru Pendidik ({stats.guruCount})</option>
-            <option value="STAFF">Staf / Karyawan ({stats.staffCount})</option>
-            <option value="ORANG_TUA">Orang Tua Murid ({stats.ortuCount})</option>
-          </select>
         </div>
       </div>
 
@@ -624,10 +884,11 @@ export const UserRegisterView: React.FC = () => {
                   <th className="py-3 px-4 w-12 text-center">No</th>
                   <th className="py-3 px-4">Nama & Akun</th>
                   <th className="py-3 px-4">Peran (Role)</th>
+                  <th className="py-3 px-4">Status Moderasi</th>
                   <th className="py-3 px-4">Username & Kata Sandi</th>
                   <th className="py-3 px-4">Kontak (Email / WA)</th>
                   <th className="py-3 px-4">Rincian Khusus Role</th>
-                  <th className="py-3 px-4 text-center w-28">Aksi SuperAdmin</th>
+                  <th className="py-3 px-4 text-center w-36">Aksi SuperAdmin</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -638,11 +899,15 @@ export const UserRegisterView: React.FC = () => {
                   const isCurrent = currentUser?.id === user.id;
                   const isPasswordVisible = Boolean(showPasswordMap[user.id]);
                   const isParent = user.role === 'ORANG_TUA';
+                  const isPending = user.status === 'PENDING';
+                  const isRejected = user.status === 'REJECTED';
 
                   return (
                     <tr
                       key={user.id}
-                      className="hover:bg-slate-50/80 transition-colors"
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        isPending ? 'bg-amber-50/40' : isRejected ? 'bg-rose-50/30' : ''
+                      }`}
                     >
                       {/* No */}
                       <td className="py-3 px-4 text-center text-slate-400 font-mono text-[11px]">
@@ -652,7 +917,9 @@ export const UserRegisterView: React.FC = () => {
                       {/* Nama & Akun */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-blue-900 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                          <div className={`w-9 h-9 rounded-xl text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs ${
+                            isPending ? 'bg-amber-600' : isRejected ? 'bg-rose-700' : 'bg-blue-900'
+                          }`}>
                             {user.name
                               .split(' ')
                               .slice(0, 2)
@@ -675,7 +942,7 @@ export const UserRegisterView: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 block">
+                            <span className="text-[10px] text-slate-400 block font-mono">
                               ID: {user.id}
                             </span>
                           </div>
@@ -689,6 +956,31 @@ export const UserRegisterView: React.FC = () => {
                           {user.positionTitle && (
                             <span className="text-[10px] text-slate-500 block font-medium">
                               {user.positionTitle}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Status Moderasi */}
+                      <td className="py-3 px-4">
+                        <div className="space-y-1">
+                          {getStatusBadge(user.status)}
+                          {user.moderatedBy && (
+                            <span className="text-[9px] text-slate-400 block">
+                              Oleh: {user.moderatedBy}
+                            </span>
+                          )}
+                          {user.rejectionReason && isRejected && (
+                            <span
+                              className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded block max-w-[150px] truncate"
+                              title={user.rejectionReason}
+                            >
+                              Alasan: {user.rejectionReason}
+                            </span>
+                          )}
+                          {user.createdAt && (
+                            <span className="text-[9px] text-slate-400 block">
+                              Daftar: {new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
                             </span>
                           )}
                         </div>
@@ -802,6 +1094,47 @@ export const UserRegisterView: React.FC = () => {
                       {/* Aksi SuperAdmin */}
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {/* Quick Moderation: Approve pending */}
+                          {isPending && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={() => handleModerateSingle(user, 'APPROVED')}
+                                className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors cursor-pointer"
+                                title="Setujui & Aktifkan Akun ini"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isSubmitting}
+                                onClick={() => {
+                                  setRejectingUser(user);
+                                  setRejectionReasonText('');
+                                }}
+                                className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg transition-colors cursor-pointer"
+                                title="Tolak Registrasi Akun ini"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+
+                          {/* Quick Moderation: Re-approve rejected */}
+                          {isRejected && (
+                            <button
+                              type="button"
+                              disabled={isSubmitting}
+                              onClick={() => handleModerateSingle(user, 'APPROVED')}
+                              className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors cursor-pointer"
+                              title="Pulihkan & Aktifkan Kembali Akun ini"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(user)}
@@ -1122,6 +1455,87 @@ export const UserRegisterView: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Status Moderasi Akun (Super Admin Authority) */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-700" />
+                    <span>Status Moderasi & Persetujuan Akun</span>
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    Otoritas Super Admin
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-xs font-bold transition-all ${
+                    editStatus === 'APPROVED'
+                      ? 'bg-emerald-100/80 border-emerald-400 text-emerald-950 ring-2 ring-emerald-500/20'
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="editStatus"
+                      value="APPROVED"
+                      checked={editStatus === 'APPROVED'}
+                      onChange={() => setEditStatus('APPROVED')}
+                      className="text-emerald-600"
+                    />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Disetujui / Aktif</span>
+                  </label>
+
+                  <label className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-xs font-bold transition-all ${
+                    editStatus === 'PENDING'
+                      ? 'bg-amber-100 border-amber-400 text-amber-950 ring-2 ring-amber-500/20'
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="editStatus"
+                      value="PENDING"
+                      checked={editStatus === 'PENDING'}
+                      onChange={() => setEditStatus('PENDING')}
+                      className="text-amber-600"
+                    />
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Menunggu Moderasi</span>
+                  </label>
+
+                  <label className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer text-xs font-bold transition-all ${
+                    editStatus === 'REJECTED'
+                      ? 'bg-rose-100 border-rose-400 text-rose-950 ring-2 ring-rose-500/20'
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="editStatus"
+                      value="REJECTED"
+                      checked={editStatus === 'REJECTED'}
+                      onChange={() => setEditStatus('REJECTED')}
+                      className="text-rose-600"
+                    />
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Ditolak</span>
+                  </label>
+                </div>
+
+                {editStatus === 'REJECTED' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-rose-800 mb-1">
+                      Alasan Penolakan Registrasi
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: NIP tidak sesuai data kepegawaian atau nama belum terdaftar di SK"
+                      value={editRejectionReason}
+                      onChange={(e) => setEditRejectionReason(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-rose-300 rounded-xl focus:ring-2 focus:ring-rose-500 text-slate-900"
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
                 <button

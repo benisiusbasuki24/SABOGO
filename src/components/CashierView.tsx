@@ -4,8 +4,11 @@ import { Bill, Student } from '../types';
 import { formatDateTimeIndo, formatRupiah } from '../utils/formatters';
 import {
   Banknote,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
+  CreditCard,
   Printer,
   QrCode,
   Receipt,
@@ -18,6 +21,14 @@ export const CashierView: React.FC = () => {
 
   const [studentSearch, setStudentSearch] = useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [copiedVaKey, setCopiedVaKey] = useState<string | null>(null);
+
+  const handleCopyVa = (text: string, key: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedVaKey(key);
+    setTimeout(() => setCopiedVaKey(null), 2000);
+  };
 
   // Today's cashier shift totals
   const todayIso = new Date().toISOString().substring(0, 10);
@@ -179,30 +190,129 @@ export const CashierView: React.FC = () => {
           {selectedStudent ? (
             <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
               {/* Selected Student Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-                <div>
-                  <span className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">
-                    Siswa Terpilih
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-0.5">
-                    {selectedStudent.name}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
-                    <span>Kelas: <strong className="text-slate-800">{selectedStudent.grade}</strong></span>
-                    <span aria-hidden="true">·</span>
-                    <span>NIS: <strong className="text-slate-800">{selectedStudent.nis}</strong></span>
-                    <span aria-hidden="true">·</span>
-                    <span>Wali: <strong className="text-slate-800">{selectedStudent.parentName}</strong></span>
-                    <span aria-hidden="true">·</span>
-                    <span>No. WA: <strong className="text-emerald-700">{selectedStudent.parentPhone}</strong></span>
+              <div className="space-y-4 pb-4 border-b border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 bg-blue-100 px-2 py-0.5 rounded">
+                        Siswa Terpilih
+                      </span>
+                      <span className="text-xs text-slate-500 font-mono">
+                        ID Pelanggan BRI: <strong className="text-blue-900 font-bold">{selectedStudent.customerIdBri || selectedStudent.nis}</strong>
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {selectedStudent.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                      <span>Kelas: <strong className="text-slate-800">{selectedStudent.grade}</strong></span>
+                      <span aria-hidden="true">·</span>
+                      <span>NIS: <strong className="text-slate-800">{selectedStudent.nis}</strong></span>
+                      <span aria-hidden="true">·</span>
+                      <span>Wali: <strong className="text-slate-800">{selectedStudent.parentName}</strong></span>
+                      <span aria-hidden="true">·</span>
+                      <span>No. WA: <strong className="text-emerald-700">{selectedStudent.parentPhone}</strong></span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs">
-                  <p className="text-slate-500">Virtual Account Mandiri:</p>
-                  <p className="font-mono font-bold text-blue-900 text-sm">
-                    {selectedStudent.vaNumber || `88012${selectedStudent.nis}`}
-                  </p>
+                {/* 3 Distinct Bank BRI Virtual Accounts */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* BRIVA SPP */}
+                  {(() => {
+                    const sppVa = selectedStudent.brivaSpp || selectedStudent.vaNumber || `108102247000${selectedStudent.nis.slice(-3)}`;
+                    return (
+                      <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-bold uppercase text-blue-900 tracking-wider block">
+                            1. BRIVA SPP (5733)
+                          </span>
+                          <span className="font-mono font-bold text-blue-950 text-xs tracking-wider block truncate">
+                            {sppVa}
+                          </span>
+                          <span className="text-[10px] text-blue-700">
+                            {formatRupiah(selectedStudent.customSppAmount || 350000)}/bln
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyVa(sppVa, 'cashier-spp')}
+                          className="p-1 hover:bg-blue-100 rounded text-blue-800 transition-colors shrink-0 cursor-pointer"
+                          title="Salin Nomor VA SPP"
+                        >
+                          {copiedVaKey === 'cashier-spp' ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* BRIVA Uang Kegiatan */}
+                  {(() => {
+                    const kegVa = selectedStudent.brivaKegiatan || `108102247000${(parseInt(selectedStudent.nis.slice(-3) || '1', 10) + 400).toString()}`;
+                    return (
+                      <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-bold uppercase text-amber-900 tracking-wider block">
+                            2. BRIVA Kegiatan (5747)
+                          </span>
+                          <span className="font-mono font-bold text-amber-950 text-xs tracking-wider block truncate">
+                            {kegVa}
+                          </span>
+                          <span className="text-[10px] text-amber-800">
+                            {formatRupiah(selectedStudent.customActivityFee || 1200000)}/thn
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyVa(kegVa, 'cashier-keg')}
+                          className="p-1 hover:bg-amber-100 rounded text-amber-800 transition-colors shrink-0 cursor-pointer"
+                          title="Salin Nomor VA Kegiatan"
+                        >
+                          {copiedVaKey === 'cashier-keg' ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* BRIVA Ekskul */}
+                  {(() => {
+                    const eksVa = selectedStudent.brivaEkskul || `108102247000${(parseInt(selectedStudent.nis.slice(-3) || '1', 10) + 900).toString()}`;
+                    return (
+                      <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-bold uppercase text-emerald-900 tracking-wider block">
+                            3. BRIVA Ekskul (14172)
+                          </span>
+                          <span className="font-mono font-bold text-emerald-950 text-xs tracking-wider block truncate">
+                            {eksVa}
+                          </span>
+                          <span className="text-[10px] text-emerald-800">
+                            {formatRupiah(selectedStudent.extracurricularFee || 200000)}/smstr
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyVa(eksVa, 'cashier-eks')}
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0 cursor-pointer"
+                          title="Salin Nomor VA Ekskul"
+                        >
+                          {copiedVaKey === 'cashier-eks' ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

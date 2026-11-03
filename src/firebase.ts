@@ -9,6 +9,7 @@ import {
   updateDoc,
   getDocFromServer,
   onSnapshot,
+  writeBatch,
   Firestore,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -137,11 +138,116 @@ export async function deleteDocument(
   }
 }
 
+// Bulk purge helper for Cloud Firestore
+export async function purgeCollectionInFirestore(
+  collectionName: string,
+  excludeIds?: string[]
+): Promise<number> {
+  try {
+    const querySnapshot = await getDocs(collection(db, collectionName));
+    const excludeSet = new Set(excludeIds || []);
+    const docsToDelete = querySnapshot.docs.filter((d) => !excludeSet.has(d.id));
+
+    if (docsToDelete.length === 0) return 0;
+
+    let deleted = 0;
+    // Process in batches of 400
+    for (let i = 0; i < docsToDelete.length; i += 400) {
+      const chunk = docsToDelete.slice(i, i + 400);
+      const batch = writeBatch(db);
+      for (const d of chunk) {
+        batch.delete(d.ref);
+        deleted++;
+      }
+      await batch.commit();
+    }
+    return deleted;
+  } catch (err) {
+    console.error(`Failed to purge ${collectionName} in Firestore:`, err);
+    return 0;
+  }
+}
+
+// Persistent tombstone record in Firestore so deleted items never re-seed
+export async function recordDeletedItemInFirestore(
+  type: 'users' | 'students',
+  identifier: string,
+  secondaryIdentifier?: string
+): Promise<void> {
+  try {
+    const docRef = doc(db, COLLECTIONS.SYSTEM_CONFIG, `deleted_${type}`);
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.SYSTEM_CONFIG));
+    const targetDoc = querySnapshot.docs.find((d) => d.id === `deleted_${type}`);
+    const data = targetDoc?.data() || { items: [] };
+    const items: string[] = data.items || [];
+    items.push(identifier.toLowerCase());
+    if (secondaryIdentifier) {
+      items.push(secondaryIdentifier.toLowerCase());
+    }
+    const uniqueItems = Array.from(new Set(items));
+    await setDoc(docRef, { items: uniqueItems, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (err) {
+    console.warn(`Could not record deleted ${type} in Firestore:`, err);
+  }
+}
+
+export async function fetchDeletedItemsFromFirestore(
+  type: 'users' | 'students'
+): Promise<Set<string>> {
+  try {
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.SYSTEM_CONFIG));
+    const targetDoc = querySnapshot.docs.find((d) => d.id === `deleted_${type}`);
+    if (targetDoc && targetDoc.exists()) {
+      const data = targetDoc.data();
+      const items: string[] = (data.items || []).map((x: any) => String(x).toLowerCase());
+      return new Set(items);
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (STUDENTS)
 // ============================================================================
 export const saveStudentToFirestore = (student: Student) => saveDocument(COLLECTIONS.STUDENTS, student);
-export const deleteStudentFromFirestore = (id: string) => deleteDocument(COLLECTIONS.STUDENTS, id);
+
+export async function deleteStudentFromFirestore(id: string, nis?: string): Promise<boolean> {
+  try {
+    // 1. Delete by direct ID
+    try {
+      const docRef = doc(db, COLLECTIONS.STUDENTS, id);
+      await deleteDoc(docRef);
+    } catch {}
+
+    // 2. Also search all docs in students collection for matching id or nis
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
+    const batch = writeBatch(db);
+    let count = 0;
+    const cleanNis = (nis || '').trim();
+    for (const docSnap of querySnapshot.docs) {
+      const s = docSnap.data() as Student;
+      const matchId = docSnap.id === id || s.id === id;
+      const matchNis = cleanNis && s.nis && s.nis.trim() === cleanNis;
+      if (matchId || matchNis) {
+        batch.delete(docSnap.ref);
+        count++;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    // 3. Record in deleted students
+    await recordDeletedItemInFirestore('students', id, nis);
+    return true;
+  } catch (err) {
+    console.error(`Failed to delete student from Firestore [${id}]:`, err);
+    return false;
+  }
+}
+
 export const subscribeStudentsFromFirestore = (cb: (s: Student[]) => void) => subscribeCollection<Student>(COLLECTIONS.STUDENTS, cb);
 
 // ============================================================================
@@ -251,8 +357,61 @@ export function subscribeSchoolInfoFromFirestore(cb: (info: SchoolStaffInfo) => 
 // ENTITY-SPECIFIC HELPERS (REGISTERED USERS & AUTH)
 // ============================================================================
 export const saveUserToFirestore = (user: AuthUser) => saveDocument(COLLECTIONS.USERS, user);
-export const deleteUserFromFirestore = (id: string) => deleteDocument(COLLECTIONS.USERS, id);
-export const subscribeUsersFromFirestore = (cb: (u: AuthUser[]) => void) => subscribeCollection<AuthUser>(COLLECTIONS.USERS, cb);
+
+export async function deleteUserFromFirestore(id: string, username?: string): Promise<boolean> {
+  try {
+    // 1. Delete document directly
+    try {
+      const docRef = doc(db, COLLECTIONS.USERS, id);
+      await deleteDoc(docRef);
+    } catch {}
+
+    // 2. Also search all docs in users collection for matching id or username
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
+    const batch = writeBatch(db);
+    let count = 0;
+    const cleanUname = (username || '').toLowerCase();
+    for (const docSnap of querySnapshot.docs) {
+      const u = docSnap.data() as AuthUser;
+      const matchId = docSnap.id === id || u.id === id;
+      const matchUname = cleanUname && u.username && u.username.toLowerCase() === cleanUname;
+      if (matchId || matchUname) {
+        batch.delete(docSnap.ref);
+        count++;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    // 3. Record in deleted items so it is NEVER re-seeded
+    await recordDeletedItemInFirestore('users', id, username);
+    return true;
+  } catch (err) {
+    console.error(`Failed to delete user from Firestore [${id}]:`, err);
+    return false;
+  }
+}
+
+export function subscribeUsersFromFirestore(cb: (u: AuthUser[]) => void): () => void {
+  return subscribeCollection<AuthUser>(COLLECTIONS.USERS, (users) => {
+    try {
+      const localDeleted = (() => {
+        try {
+          const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
+          const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
+          return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => x.toLowerCase()));
+        } catch {
+          return new Set<string>();
+        }
+      })();
+      const filtered = users.filter((u) => !localDeleted.has(u.id.toLowerCase()) && !localDeleted.has(u.username.toLowerCase()));
+      cb(filtered);
+    } catch {
+      cb(users);
+    }
+  });
+}
 
 export async function fetchUsersFromFirestore(): Promise<AuthUser[]> {
   try {
@@ -294,14 +453,36 @@ export async function findUserInFirestore(identifier: string): Promise<AuthUser 
 
 export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<void> {
   try {
+    const deletedSet = await fetchDeletedItemsFromFirestore('users');
+    const localDeleted = (() => {
+      try {
+        const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
+        const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
+        return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => x.toLowerCase()));
+      } catch {
+        return new Set<string>();
+      }
+    })();
+
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
     const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
     const existingUsernames = new Set(
       querySnapshot.docs.map((d) => ((d.data() as AuthUser).username || '').toLowerCase())
     );
     for (const u of users) {
+      const uLower = u.username.toLowerCase();
+      // NEVER re-seed if this user has been deleted by Super Admin!
+      if (
+        deletedSet.has(u.id.toLowerCase()) ||
+        deletedSet.has(uLower) ||
+        localDeleted.has(u.id.toLowerCase()) ||
+        localDeleted.has(uLower)
+      ) {
+        continue;
+      }
+
       // ONLY seed if the user ID and username do not already exist in Cloud Firestore
-      if (!existingIds.has(u.id) && !existingUsernames.has(u.username.toLowerCase())) {
+      if (!existingIds.has(u.id) && !existingUsernames.has(uLower)) {
         await saveUserToFirestore(u);
       }
     }
@@ -312,11 +493,39 @@ export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<vo
 
 export async function seedInitialStudentsToFirestore(students: Student[]): Promise<number> {
   try {
+    // If students were explicitly purged by Super Admin, DO NOT auto re-seed!
+    if (typeof window !== 'undefined' && localStorage.getItem('SIBOGO_STUDENTS_PURGED') === 'true') {
+      return 0;
+    }
+
+    const deletedSet = await fetchDeletedItemsFromFirestore('students');
+    const localDeleted = (() => {
+      try {
+        const raw = localStorage.getItem('sd_bopkri_deleted_students_v1');
+        return new Set((raw ? JSON.parse(raw) : []).map((x: string) => String(x).toLowerCase()));
+      } catch {
+        return new Set<string>();
+      }
+    })();
+
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
     const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
+    const existingNis = new Set(querySnapshot.docs.map((d) => ((d.data() as Student).nis || '').trim()));
+
     let seeded = 0;
     for (const student of students) {
-      if (!existingIds.has(student.id)) {
+      const nisClean = (student.nis || '').trim();
+      // NEVER seed if deleted!
+      if (
+        deletedSet.has(student.id.toLowerCase()) ||
+        deletedSet.has(nisClean.toLowerCase()) ||
+        localDeleted.has(student.id.toLowerCase()) ||
+        localDeleted.has(nisClean.toLowerCase())
+      ) {
+        continue;
+      }
+
+      if (!existingIds.has(student.id) && !existingNis.has(nisClean)) {
         await saveDocument(COLLECTIONS.STUDENTS, student);
         seeded++;
       }

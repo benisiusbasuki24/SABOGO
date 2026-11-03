@@ -33,7 +33,7 @@ export const ReceiptModal: React.FC = () => {
       case 'VA_MANDIRI':
         return 'Virtual Account Mandiri';
       case 'VA_BRI':
-        return 'Virtual Account BRI';
+        return 'Virtual Account Bank BRI (BRIVA)';
       case 'VA_BNI':
         return 'Virtual Account BNI';
       default:

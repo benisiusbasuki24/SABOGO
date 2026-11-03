@@ -315,11 +315,13 @@ export const PDF_EXTRACTED_STUDENTS: Student[] = [
     "vaNumber": "108102247000016",
     "brivaSpp": "108102247000016",
     "brivaKegiatan": "108102247000428",
-    "brivaEkskul": "",
+    "brivaEkskul": "108102247000913",
     "customerIdBri": "142097",
     "status": "AKTIF",
-    "extracurriculars": [],
-    "extracurricularFee": 0,
+    "extracurriculars": [
+      "PADUS"
+    ],
+    "extracurricularFee": 200000,
     "customSppAmount": 425000,
     "customActivityFee": 1300000,
     "createdAt": "2026-07-15T08:00:00.000Z"
@@ -1838,11 +1840,13 @@ export const PDF_EXTRACTED_STUDENTS: Student[] = [
     "vaNumber": "108102247000685",
     "brivaSpp": "108102247000685",
     "brivaKegiatan": "108102247000731",
-    "brivaEkskul": "",
+    "brivaEkskul": "108102247000974",
     "customerIdBri": "200481",
     "status": "AKTIF",
-    "extracurriculars": [],
-    "extracurricularFee": 0,
+    "extracurriculars": [
+      "PADUS"
+    ],
+    "extracurricularFee": 200000,
     "customSppAmount": 375000,
     "customActivityFee": 1300000,
     "createdAt": "2026-07-15T08:00:00.000Z"
@@ -2086,11 +2090,13 @@ export const PDF_EXTRACTED_STUDENTS: Student[] = [
     "vaNumber": "108102247000696",
     "brivaSpp": "108102247000696",
     "brivaKegiatan": "108102247000742",
-    "brivaEkskul": "",
+    "brivaEkskul": "108102247000984",
     "customerIdBri": "200492",
     "status": "AKTIF",
-    "extracurriculars": [],
-    "extracurricularFee": 0,
+    "extracurriculars": [
+      "PADUS"
+    ],
+    "extracurricularFee": 200000,
     "customSppAmount": 450000,
     "customActivityFee": 1300000,
     "createdAt": "2026-07-15T08:00:00.000Z"
@@ -2284,11 +2290,13 @@ export const PDF_EXTRACTED_STUDENTS: Student[] = [
     "vaNumber": "108102247000709",
     "brivaSpp": "108102247000709",
     "brivaKegiatan": "108102247000751",
-    "brivaEkskul": "",
+    "brivaEkskul": "108102247000992",
     "customerIdBri": "200631",
     "status": "AKTIF",
-    "extracurriculars": [],
-    "extracurricularFee": 0,
+    "extracurriculars": [
+      "PADUS"
+    ],
+    "extracurricularFee": 200000,
     "customSppAmount": 300000,
     "customActivityFee": 1400000,
     "createdAt": "2026-07-15T08:00:00.000Z"
@@ -2307,11 +2315,13 @@ export const PDF_EXTRACTED_STUDENTS: Student[] = [
     "vaNumber": "108102247000713",
     "brivaSpp": "108102247000713",
     "brivaKegiatan": "108102247000754",
-    "brivaEkskul": "",
+    "brivaEkskul": "108102247000993",
     "customerIdBri": "200699",
     "status": "AKTIF",
-    "extracurriculars": [],
-    "extracurricularFee": 0,
+    "extracurriculars": [
+      "PADUS"
+    ],
+    "extracurricularFee": 200000,
     "customSppAmount": 325000,
     "customActivityFee": 1400000,
     "createdAt": "2026-07-15T08:00:00.000Z"

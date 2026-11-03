@@ -202,6 +202,21 @@ export type UserRole =
   | 'ORANG_TUA'       // Orang Tua Murid
   | 'TEACHER';        // Compatibility alias for Guru
 
+export type UserApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export const MODERATED_ROLES: UserRole[] = [
+  'KEPALA_SEKOLAH',
+  'GURU',
+  'BENDAHARA',
+  'TATA_USAHA',
+  'STAFF',
+  'TEACHER',
+];
+
+export function requiresSuperAdminModeration(role: UserRole): boolean {
+  return MODERATED_ROLES.includes(role);
+}
+
 export interface AuthUser {
   id: string;
   role: UserRole;
@@ -220,6 +235,11 @@ export interface AuthUser {
   password?: string;
   teacherId?: string; // Terhubung ke ID guru jika role GURU/STAFF/TEACHER
   positionTitle?: string;
+  // Status moderasi registrasi oleh Super Administrator
+  status?: UserApprovalStatus; // PENDING = Menunggu moderasi, APPROVED = Disetujui/Aktif, REJECTED = Ditolak
+  moderatedBy?: string; // Nama Super Admin yang menyetujui / menolak
+  moderatedAt?: string; // Tanggal & waktu moderasi (ISO)
+  rejectionReason?: string; // Alasan penolakan jika ditolak
   // Link khusus Orang Tua Murid:
   studentId?: string; // ID Siswa anak
   studentNis?: string; // NIS Siswa anak

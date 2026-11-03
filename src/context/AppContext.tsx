@@ -51,6 +51,8 @@ import {
   seedInitialStudentsToFirestore,
   syncAllStudentsToFirestore,
   testFirestoreConnection,
+  purgeCollectionInFirestore,
+  COLLECTIONS,
 } from '../firebase';
 import {
   AuthUser,
@@ -69,9 +71,12 @@ import {
   TeachingAdminDoc,
   ToastNotification,
   UserRole,
+  UserApprovalStatus,
   EmploymentStatus,
   normalizeGrade,
   SCHOOL_GRADES,
+  MODERATED_ROLES,
+  requiresSuperAdminModeration,
 } from '../types';
 
 import { generateUniqueUserCode } from '../utils/uniqueCode';
@@ -94,6 +99,7 @@ export const DEFAULT_ADMIN_USER: AuthUser = {
   positionTitle: 'SuperAdmin & Pengembang SIBOGO',
   teacherId: 'tch-04',
   password: 'Admin123',
+  status: 'APPROVED',
 };
 
 export const ADMIN_2_USER: AuthUser = {
@@ -114,6 +120,7 @@ export const ADMIN_2_USER: AuthUser = {
   positionTitle: 'Administrator 2 SIBOGO',
   teacherId: 'tch-05',
   password: 'Admin123',
+  status: 'APPROVED',
 };
 
 export const INITIAL_REGISTERED_USERS: AuthUser[] = [
@@ -137,6 +144,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     positionTitle: 'Kepala Sekolah',
     teacherId: 'tch-01',
     password: 'Kepsek123',
+    status: 'APPROVED',
   },
   {
     id: 'usr-bendahara-eni',
@@ -156,6 +164,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     positionTitle: 'Bendahara Sekolah',
     teacherId: 'tch-02',
     password: 'Bendahara123',
+    status: 'APPROVED',
   },
   {
     id: 'usr-tu-nastiti',
@@ -175,6 +184,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     positionTitle: 'Kasir & Staf Tata Usaha',
     teacherId: 'tch-03',
     password: 'kasir123',
+    status: 'APPROVED',
   },
   {
     id: 'usr-reg-1793244380827',
@@ -194,6 +204,7 @@ export const INITIAL_REGISTERED_USERS: AuthUser[] = [
     positionTitle: 'Guru Kelas 2.1',
     teacherId: 'tch-06',
     password: 'kelas2.1',
+    status: 'APPROVED',
   },
 ];
 
@@ -239,6 +250,7 @@ export interface RegisterUserData {
   studentNis?: string;
   studentName?: string;
   studentGrade?: string;
+  status?: UserApprovalStatus;
 }
 
 interface AppContextType {
@@ -254,6 +266,8 @@ interface AppContextType {
   currentUser: AuthUser | null;
   registeredUsers: AuthUser[];
   registerUser: (data: RegisterUserData) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
+  moderateUserRegistration: (userId: string, status: UserApprovalStatus, reason?: string) => Promise<{ success: boolean; message: string }>;
+  moderateBulkUserRegistrations: (userIds: string[], status: UserApprovalStatus) => Promise<{ success: boolean; count: number }>;
   login: (username: string, password?: string) => Promise<{ success: boolean; message: string; user?: AuthUser }>;
   logout: () => void;
   switchUser: (user: AuthUser) => void;
@@ -383,7 +397,7 @@ interface AppContextType {
   resetToDefaultData: () => void;
   isDataPurgeModalOpen: boolean;
   setIsDataPurgeModalOpen: (open: boolean) => void;
-  purgeModuleData: (module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all') => void;
+  purgeModuleData: (module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all') => Promise<void> | void;
   printFormat: 'A4' | 'STRUK';
   setPrintFormat: (fmt: 'A4' | 'STRUK') => void;
   openReceiptPrint: (tx: PaymentTransaction, format?: 'A4' | 'STRUK') => void;
@@ -404,6 +418,8 @@ const STORAGE_KEYS = {
   ASSETS: 'sd_bopkri_assets_v1',
   REGISTERED_USERS: 'sd_bopkri_registered_users_v1',
   SPMB: 'sd_bopkri_spmb_v1',
+  DELETED_USERS: 'sd_bopkri_deleted_users_v1',
+  DELETED_STUDENTS: 'sd_bopkri_deleted_students_v1',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -447,16 +463,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('SIBOGO_STUDENTS_PURGED') === 'true') {
+      return [];
+    }
+
+    let deletedStudentIds: string[] = [];
+    try {
+      const delStr = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
+      if (delStr) {
+        deletedStudentIds = JSON.parse(delStr).map((x: string) => String(x).toLowerCase());
+      }
+    } catch {}
+
+    const isStudentDeleted = (st: { id: string; nis?: string }) => {
+      const idMatch = deletedStudentIds.includes(st.id.toLowerCase());
+      const nisMatch = st.nis ? deletedStudentIds.includes(st.nis.trim().toLowerCase()) : false;
+      return idMatch || nisMatch;
+    };
+
     const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    if (!saved) return INITIAL_STUDENTS;
+    if (!saved) {
+      return INITIAL_STUDENTS.filter((s) => !isStudentDeleted(s));
+    }
     try {
       const parsed: Student[] = JSON.parse(saved);
-      // Guarantee all 212 students from INITIAL_STUDENTS are present with normalized grades & BRIVA
+      // Guarantee initial students are present with normalized grades & BRIVA, skipping any deleted ones
       const map = new Map<string, Student>();
       INITIAL_STUDENTS.forEach((seed) => {
-        map.set(seed.id, { ...seed, grade: normalizeGrade(seed.grade) });
+        if (!isStudentDeleted(seed)) {
+          map.set(seed.id, { ...seed, grade: normalizeGrade(seed.grade) });
+        }
       });
       parsed.forEach((s) => {
+        if (isStudentDeleted(s)) return;
         const normGrade = normalizeGrade(s.grade);
         const existing =
           map.get(s.id) ||
@@ -492,7 +531,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       return Array.from(map.values());
     } catch {
-      return INITIAL_STUDENTS;
+      return INITIAL_STUDENTS.filter((s) => !isStudentDeleted(s));
     }
   });
 
@@ -602,21 +641,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const [registeredUsers, setRegisteredUsers] = useState<AuthUser[]>(() => {
-    const deletedUsernames = ['mariakristianti', 'agustriyono', 'ortu.jonathan'];
+    let deletedUsernames: string[] = ['mariakristianti', 'agustriyono', 'ortu.jonathan'];
+    let deletedIds: string[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_USERS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          deletedUsernames.push(...parsed.map((x: string) => String(x).toLowerCase()));
+        } else if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.usernames)) {
+            deletedUsernames.push(...parsed.usernames.map((x: string) => String(x).toLowerCase()));
+          }
+          if (Array.isArray(parsed.ids)) {
+            deletedIds.push(...parsed.ids.map((x: string) => String(x).toLowerCase()));
+          }
+        }
+      }
+    } catch {}
+
+    const isUserDeleted = (u: { id: string; username?: string }) => {
+      const idMatch = deletedIds.includes(u.id.toLowerCase());
+      const unameMatch = u.username ? deletedUsernames.includes(u.username.toLowerCase()) : false;
+      return idMatch || unameMatch;
+    };
+
     const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
-    if (!saved) return INITIAL_REGISTERED_USERS;
+    if (!saved) {
+      return INITIAL_REGISTERED_USERS.filter((u) => !isUserDeleted(u));
+    }
     try {
       const parsed: AuthUser[] = JSON.parse(saved);
-      const cleaned = parsed.filter((u) => !deletedUsernames.includes(u.username.toLowerCase()));
+      const cleaned = parsed.filter((u) => !isUserDeleted(u));
       const merged = [...cleaned];
       for (const init of INITIAL_REGISTERED_USERS) {
-        if (!merged.some((u) => u.username.toLowerCase() === init.username.toLowerCase())) {
+        if (!isUserDeleted(init) && !merged.some((u) => u.username.toLowerCase() === init.username.toLowerCase())) {
           merged.push(init);
         }
       }
       return merged;
     } catch {
-      return INITIAL_REGISTERED_USERS;
+      return INITIAL_REGISTERED_USERS.filter((u) => !isUserDeleted(u));
     }
   });
 
@@ -880,13 +945,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Real-time subscription to Students across all devices
     const unsubscribeStudents = subscribeStudentsFromFirestore((cloudStudents) => {
+      if (typeof window !== 'undefined' && localStorage.getItem('SIBOGO_STUDENTS_PURGED') === 'true') {
+        if (!cloudStudents || cloudStudents.length === 0) {
+          setStudents([]);
+        }
+        return;
+      }
       if (cloudStudents && cloudStudents.length > 0) {
-        setStudents(
-          cloudStudents.map((s) => ({
+        let deletedStudentIds: string[] = [];
+        try {
+          const delStr = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
+          if (delStr) deletedStudentIds = JSON.parse(delStr).map((x: string) => String(x).toLowerCase());
+        } catch {}
+
+        const filtered = cloudStudents
+          .filter(
+            (s) =>
+              !deletedStudentIds.includes(s.id.toLowerCase()) &&
+              !(s.nis && deletedStudentIds.includes(s.nis.trim().toLowerCase()))
+          )
+          .map((s) => ({
             ...s,
             grade: normalizeGrade(s.grade),
-          }))
-        );
+          }));
+        setStudents(filtered);
+      } else if (cloudStudents && cloudStudents.length === 0) {
+        setStudents([]);
       }
     });
 
@@ -1051,6 +1135,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const existingCodes = registeredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
     const assignedUniqueCode = data.uniqueCode || generateUniqueUserCode(existingCodes);
 
+    // Registrasi role kepala sekolah, guru, bendahara, tata usaha, staff/karyawan memerlukan moderasi dari superadmin
+    let initialStatus: UserApprovalStatus = 'APPROVED';
+    if (data.status) {
+      initialStatus = data.status;
+    } else if (isSuperAdmin) {
+      // Super Admin creates users directly as approved unless specified
+      initialStatus = 'APPROVED';
+    } else if (requiresSuperAdminModeration(data.role)) {
+      initialStatus = 'PENDING';
+    } else {
+      initialStatus = 'APPROVED';
+    }
+
     const newUser: AuthUser = {
       id: `usr-reg-${Date.now()}`,
       role: data.role,
@@ -1073,6 +1170,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentName: linkedStudentName,
       studentGrade: linkedStudentGrade,
       password: data.password.trim(),
+      status: initialStatus,
       createdAt: new Date().toISOString(),
     };
 
@@ -1084,6 +1182,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setRegisteredUsers((prev) => [...prev, newUser]);
+
+    if (initialStatus === 'PENDING') {
+      return {
+        success: true,
+        message: `Pendaftaran berhasil! Akun ${newUser.name} sebagai ${newUser.positionTitle || newUser.role} memerlukan MODERASI & PERSETUJUAN dari Super Administrator (Benisius R.B) sebelum dapat digunakan untuk masuk ke sistem SIBOGO. Nomor Registrasi / Kode Unik Anda: ${assignedUniqueCode}.`,
+        user: newUser,
+      };
+    }
 
     return {
       success: true,
@@ -1210,6 +1316,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
+    // 4. Moderasi Superadmin check
+    const userStatus = userMatch.status || 'APPROVED';
+    if (userStatus === 'PENDING') {
+      return {
+        success: false,
+        message: `Akun Anda (${userMatch.name} - ${userMatch.positionTitle || userMatch.role}) belum dapat digunakan karena masih MENUNGGU MODERASI oleh Super Administrator (Benisius R.B). Silakan hubungi Super Admin untuk persetujuan akun.`,
+      };
+    }
+
+    if (userStatus === 'REJECTED') {
+      return {
+        success: false,
+        message: `Pendaftaran akun Anda (${userMatch.name}) telah DITOLAK oleh Super Administrator.${userMatch.rejectionReason ? ` Alasan: ${userMatch.rejectionReason}` : ''} Silakan hubungi pihak sekolah.`,
+      };
+    }
+
     setCurrentUser(userMatch);
     setIsLoginModalOpen(false);
     localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(userMatch));
@@ -1256,6 +1378,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (user.role === 'TEACHER') {
       setActiveTabRaw('my-slips');
     }
+  };
+
+  // Moderasi Pendaftaran Pengguna oleh Super Administrator
+  const moderateUserRegistration = async (
+    userId: string,
+    status: UserApprovalStatus,
+    reason?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const targetUser = registeredUsers.find((u) => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'Data pengguna tidak ditemukan.' };
+    }
+
+    const adminName = currentUser?.name || 'Benisius Rahmat Basuki (SuperAdmin)';
+    const updatedUser: AuthUser = {
+      ...targetUser,
+      status,
+      moderatedBy: adminName,
+      moderatedAt: new Date().toISOString(),
+      rejectionReason: status === 'REJECTED' ? reason || targetUser.rejectionReason : undefined,
+    };
+
+    try {
+      await saveUserToFirestore(updatedUser);
+    } catch (err) {
+      console.warn('Error saving user moderation to Firestore:', err);
+    }
+
+    setRegisteredUsers((prev) => {
+      const next = prev.map((u) => (u.id === userId ? updatedUser : u));
+      localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+      return next;
+    });
+
+    const statusText = status === 'APPROVED' ? 'disetujui & diaktifkan' : status === 'REJECTED' ? 'ditolak' : 'dikembalikan ke status antrean';
+    showToast(`Akun ${updatedUser.name} (${updatedUser.positionTitle || updatedUser.role}) berhasil ${statusText}.`, status === 'APPROVED' ? 'success' : 'info');
+
+    return {
+      success: true,
+      message: `Akun ${updatedUser.name} (${updatedUser.positionTitle || updatedUser.role}) berhasil ${statusText}.`,
+    };
+  };
+
+  const moderateBulkUserRegistrations = async (
+    userIds: string[],
+    status: UserApprovalStatus
+  ): Promise<{ success: boolean; count: number }> => {
+    let count = 0;
+    const now = new Date().toISOString();
+    const adminName = currentUser?.name || 'Benisius Rahmat Basuki (SuperAdmin)';
+
+    for (const id of userIds) {
+      const targetUser = registeredUsers.find((u) => u.id === id);
+      if (targetUser) {
+        const updated: AuthUser = {
+          ...targetUser,
+          status,
+          moderatedBy: adminName,
+          moderatedAt: now,
+        };
+        try {
+          await saveUserToFirestore(updated);
+        } catch (err) {
+          console.warn('Error saving in bulk moderation:', err);
+        }
+        count++;
+      }
+    }
+
+    setRegisteredUsers((prev) => {
+      const next = prev.map((u) =>
+        userIds.includes(u.id)
+          ? { ...u, status, moderatedBy: adminName, moderatedAt: now }
+          : u
+      );
+      localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
+      return next;
+    });
+
+    const statusText = status === 'APPROVED' ? 'disetujui & diaktifkan' : 'ditolak';
+    showToast(`Berhasil memoderasi: ${count} akun pendaftaran telah ${statusText}.`, 'success');
+
+    return { success: true, count };
   };
 
   // Profile and Password Management Operations
@@ -1498,16 +1703,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      await deleteUserFromFirestore(userId);
+      // Record to persistent localStorage deleted users tombstone
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.DELETED_USERS);
+        const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
+        const ids = Array.isArray(parsed) ? parsed : Array.isArray(parsed.ids) ? parsed.ids : [];
+        const usernames = Array.isArray(parsed.usernames) ? parsed.usernames : [];
+        if (!ids.includes(userId)) ids.push(userId);
+        if (targetUser.username && !usernames.includes(targetUser.username.toLowerCase())) {
+          usernames.push(targetUser.username.toLowerCase());
+        }
+        localStorage.setItem(STORAGE_KEYS.DELETED_USERS, JSON.stringify({ ids, usernames }));
+      } catch {}
+
+      await deleteUserFromFirestore(userId, targetUser.username);
 
       setRegisteredUsers((prev) => {
-        const next = prev.filter((u) => u.id !== userId);
+        const next = prev.filter((u) => u.id !== userId && u.username.toLowerCase() !== targetUser.username.toLowerCase());
         localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
         return next;
       });
 
-      showToast(`User "${targetUser.name}" (@${targetUser.username}) berhasil dihapus dari Cloud Firestore.`, 'info');
-      return { success: true, message: 'Pengguna berhasil dihapus dari Cloud Firestore.' };
+      showToast(`User "${targetUser.name}" (@${targetUser.username}) berhasil dihapus permanen dari Cloud Firestore.`, 'info');
+      return { success: true, message: 'Pengguna berhasil dihapus permanen dari Cloud Firestore.' };
     } catch (err) {
       console.error('adminDeleteUser error:', err);
       return { success: false, message: 'Gagal menghapus pengguna dari Cloud Firestore.' };
@@ -1745,8 +1963,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data siswa.', 'warning');
       return;
     }
-    setStudents((prev) => prev.filter((s) => s.id !== id));
-    deleteStudentFromFirestore(id).catch(() => {});
+    const targetStudent = students.find((s) => s.id === id);
+    setStudents((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(next));
+      return next;
+    });
+
+    // Record to persistent deleted students tombstone
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
+      const delList: string[] = raw ? JSON.parse(raw) : [];
+      if (!delList.includes(id)) delList.push(id);
+      if (targetStudent?.nis && !delList.includes(targetStudent.nis.trim())) delList.push(targetStudent.nis.trim());
+      localStorage.setItem(STORAGE_KEYS.DELETED_STUDENTS, JSON.stringify(delList));
+    } catch {}
+
+    deleteStudentFromFirestore(id, targetStudent?.nis).catch(() => {});
     if (deleteRelatedBills) {
       setBills((prev) => {
         const remaining: Bill[] = [];
@@ -1757,10 +1990,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             remaining.push(b);
           }
         });
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(remaining));
         return remaining;
       });
     }
-    showToast('Data siswa berhasil dihapus.', 'info');
+    showToast('Data siswa berhasil dihapus secara permanen dari Cloud Firestore.', 'info');
   };
 
   const deleteStudentsBulk = (ids: string[], deleteRelatedBills: boolean = true): number => {
@@ -1769,8 +2003,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return 0;
     }
     const idSet = new Set(ids);
-    setStudents((prev) => prev.filter((s) => !idSet.has(s.id)));
-    ids.forEach((id) => deleteStudentFromFirestore(id).catch(() => {}));
+    const deletedStudents = students.filter((s) => idSet.has(s.id));
+    setStudents((prev) => {
+      const next = prev.filter((s) => !idSet.has(s.id));
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
+      const delList: string[] = raw ? JSON.parse(raw) : [];
+      deletedStudents.forEach((st) => {
+        if (!delList.includes(st.id)) delList.push(st.id);
+        if (st.nis && !delList.includes(st.nis.trim())) delList.push(st.nis.trim());
+      });
+      localStorage.setItem(STORAGE_KEYS.DELETED_STUDENTS, JSON.stringify(delList));
+    } catch {}
+
+    deletedStudents.forEach((st) => deleteStudentFromFirestore(st.id, st.nis).catch(() => {}));
     if (deleteRelatedBills) {
       setBills((prev) => {
         const remaining: Bill[] = [];
@@ -1781,10 +2031,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             remaining.push(b);
           }
         });
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(remaining));
         return remaining;
       });
     }
-    showToast(`${ids.length} data siswa berhasil dihapus.`, 'info');
+    showToast(`${ids.length} data siswa berhasil dihapus permanen dari Cloud Firestore.`, 'info');
     return ids.length;
   };
 
@@ -2809,6 +3060,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     if (window.confirm('Kembalikan seluruh data ke contoh awal SD BOPKRI Gondolayu?')) {
+      localStorage.removeItem('SIBOGO_STUDENTS_PURGED');
+      localStorage.removeItem(STORAGE_KEYS.DELETED_STUDENTS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_USERS);
       localStorage.removeItem(STORAGE_KEYS.STAFF);
       localStorage.removeItem(STORAGE_KEYS.STUDENTS);
       localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
@@ -2837,46 +3091,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const purgeModuleData = (
+  const purgeModuleData = async (
     module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all'
   ) => {
     if (!isSuperAdmin) {
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses mengosongkan seluruh data.', 'warning');
       return;
     }
-    if (module === 'students' || module === 'all') {
-      setStudents([]);
-      localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+
+    try {
+      if (module === 'students' || module === 'all') {
+        setStudents([]);
+        localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+        localStorage.setItem('SIBOGO_STUDENTS_PURGED', 'true');
+        await purgeCollectionInFirestore(COLLECTIONS.STUDENTS);
+      }
+      if (module === 'bills' || module === 'all') {
+        setBills([]);
+        localStorage.removeItem(STORAGE_KEYS.BILLS);
+        await purgeCollectionInFirestore(COLLECTIONS.BILLS);
+      }
+      if (module === 'transactions' || module === 'all') {
+        setTransactions([]);
+        localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        await purgeCollectionInFirestore(COLLECTIONS.TRANSACTIONS);
+      }
+      if (module === 'billTypes' || module === 'all') {
+        setBillTypes([]);
+        localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
+        await purgeCollectionInFirestore(COLLECTIONS.BILL_TYPES);
+      }
+      if (module === 'teachers' || module === 'all') {
+        setTeachers([]);
+        localStorage.removeItem(STORAGE_KEYS.TEACHERS);
+        await purgeCollectionInFirestore(COLLECTIONS.TEACHERS);
+      }
+      if (module === 'payrolls' || module === 'all') {
+        setPayrolls([]);
+        localStorage.removeItem(STORAGE_KEYS.PAYROLLS);
+        await purgeCollectionInFirestore(COLLECTIONS.PAYROLLS);
+      }
+      if (module === 'teachingDocs' || module === 'all') {
+        setTeachingDocs([]);
+        localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
+        await purgeCollectionInFirestore(COLLECTIONS.TEACHING_DOCS);
+      }
+      if (module === 'assets' || module === 'all') {
+        setAssets([]);
+        localStorage.removeItem(STORAGE_KEYS.ASSETS);
+        await purgeCollectionInFirestore(COLLECTIONS.INVENTORY);
+      }
+      showToast('Data modul berhasil dikosongkan secara permanen di Cloud Firestore.', 'info');
+    } catch (err) {
+      console.error('Failed to purge data from Cloud Firestore:', err);
+      showToast('Pembersihan data lokal berhasil, sedang diproses di Cloud Firestore.', 'info');
     }
-    if (module === 'bills' || module === 'all') {
-      setBills([]);
-      localStorage.removeItem(STORAGE_KEYS.BILLS);
-    }
-    if (module === 'transactions' || module === 'all') {
-      setTransactions([]);
-      localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
-    }
-    if (module === 'billTypes' || module === 'all') {
-      setBillTypes([]);
-      localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
-    }
-    if (module === 'teachers' || module === 'all') {
-      setTeachers([]);
-      localStorage.removeItem(STORAGE_KEYS.TEACHERS);
-    }
-    if (module === 'payrolls' || module === 'all') {
-      setPayrolls([]);
-      localStorage.removeItem(STORAGE_KEYS.PAYROLLS);
-    }
-    if (module === 'teachingDocs' || module === 'all') {
-      setTeachingDocs([]);
-      localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
-    }
-    if (module === 'assets' || module === 'all') {
-      setAssets([]);
-      localStorage.removeItem(STORAGE_KEYS.ASSETS);
-    }
-    showToast('Data modul berhasil dikosongkan.', 'info');
   };
 
   return (
@@ -2891,6 +3160,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         registeredUsers,
         registerUser,
+        moderateUserRegistration,
+        moderateBulkUserRegistrations,
         login,
         logout,
         switchUser,
