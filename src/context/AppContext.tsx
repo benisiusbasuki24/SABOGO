@@ -420,6 +420,45 @@ const STORAGE_KEYS = {
   SPMB: 'sd_bopkri_spmb_v1',
   DELETED_USERS: 'sd_bopkri_deleted_users_v1',
   DELETED_STUDENTS: 'sd_bopkri_deleted_students_v1',
+  DELETED_BILLS: 'sd_bopkri_deleted_bills_v1',
+  DELETED_TRANSACTIONS: 'sd_bopkri_deleted_transactions_v1',
+  DELETED_TEACHERS: 'sd_bopkri_deleted_teachers_v1',
+  DELETED_PAYROLLS: 'sd_bopkri_deleted_payrolls_v1',
+  DELETED_ASSETS: 'sd_bopkri_deleted_assets_v1',
+  DELETED_TEACHING_DOCS: 'sd_bopkri_deleted_teaching_docs_v1',
+  DELETED_BILL_TYPES: 'sd_bopkri_deleted_bill_types_v1',
+  DELETED_SPMB: 'sd_bopkri_deleted_spmb_v1',
+};
+
+export const getTombstoneSet = (key: string): Set<string> => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((x) => String(x).toLowerCase().trim()));
+    }
+    if (parsed && typeof parsed === 'object') {
+      const items = [...(parsed.ids || []), ...(parsed.usernames || []), ...(parsed.items || [])];
+      return new Set(items.map((x) => String(x).toLowerCase().trim()));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+export const recordTombstone = (key: string, ...identifiers: (string | undefined | null)[]) => {
+  try {
+    if (typeof window === 'undefined') return;
+    const currentSet = getTombstoneSet(key);
+    identifiers.forEach((id) => {
+      if (id && id.trim()) {
+        currentSet.add(id.trim().toLowerCase());
+      }
+    });
+    localStorage.setItem(key, JSON.stringify(Array.from(currentSet)));
+  } catch {}
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -467,162 +506,152 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return [];
     }
 
-    let deletedStudentIds: string[] = [];
-    try {
-      const delStr = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
-      if (delStr) {
-        deletedStudentIds = JSON.parse(delStr).map((x: string) => String(x).toLowerCase());
-      }
-    } catch {}
-
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_STUDENTS);
     const isStudentDeleted = (st: { id: string; nis?: string }) => {
-      const idMatch = deletedStudentIds.includes(st.id.toLowerCase());
-      const nisMatch = st.nis ? deletedStudentIds.includes(st.nis.trim().toLowerCase()) : false;
+      const idMatch = delSet.has(st.id.toLowerCase());
+      const nisMatch = st.nis ? delSet.has(st.nis.trim().toLowerCase()) : false;
       return idMatch || nisMatch;
     };
 
     const saved = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    if (!saved) {
-      return INITIAL_STUDENTS.filter((s) => !isStudentDeleted(s));
+    if (saved !== null) {
+      try {
+        const parsed: Student[] = JSON.parse(saved);
+        return parsed.filter((s) => !isStudentDeleted(s)).map((s) => ({
+          ...s,
+          grade: normalizeGrade(s.grade),
+        }));
+      } catch {
+        return [];
+      }
     }
-    try {
-      const parsed: Student[] = JSON.parse(saved);
-      // Guarantee initial students are present with normalized grades & BRIVA, skipping any deleted ones
-      const map = new Map<string, Student>();
-      INITIAL_STUDENTS.forEach((seed) => {
-        if (!isStudentDeleted(seed)) {
-          map.set(seed.id, { ...seed, grade: normalizeGrade(seed.grade) });
-        }
-      });
-      parsed.forEach((s) => {
-        if (isStudentDeleted(s)) return;
-        const normGrade = normalizeGrade(s.grade);
-        const existing =
-          map.get(s.id) ||
-          INITIAL_STUDENTS.find(
-            (seed) =>
-              (seed.customerIdBri && s.customerIdBri && seed.customerIdBri === s.customerIdBri) ||
-              seed.name.toLowerCase() === s.name.toLowerCase() ||
-              seed.nis === s.nis
-          );
-        if (existing) {
-          map.set(existing.id, {
-            ...existing,
-            ...s,
-            grade: normGrade,
-            brivaSpp: s.brivaSpp || existing.brivaSpp,
-            brivaKegiatan: s.brivaKegiatan || existing.brivaKegiatan,
-            brivaEkskul: s.brivaEkskul || existing.brivaEkskul,
-            customerIdBri: s.customerIdBri || existing.customerIdBri,
-            vaNumber: s.vaNumber || existing.vaNumber,
-            address: s.address || existing.address,
-            parentPhone: s.parentPhone || existing.parentPhone,
-            parentEmail: s.parentEmail || existing.parentEmail,
-            customSppAmount: s.customSppAmount ?? existing.customSppAmount ?? 350000,
-            customActivityFee: s.customActivityFee ?? existing.customActivityFee ?? 1200000,
-            extracurricularFee: s.extracurricularFee ?? existing.extracurricularFee ?? 200000,
-          });
-        } else {
-          map.set(s.id, {
-            ...s,
-            grade: normGrade,
-          });
-        }
-      });
-      return Array.from(map.values());
-    } catch {
-      return INITIAL_STUDENTS.filter((s) => !isStudentDeleted(s));
-    }
+    return INITIAL_STUDENTS.filter((s) => !isStudentDeleted(s));
   });
 
   const [billTypes, setBillTypes] = useState<BillType[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.BILL_TYPES);
-    if (!saved) return INITIAL_BILL_TYPES;
-    try {
-      const parsed: BillType[] = JSON.parse(saved);
-      return parsed.map((bt) => {
-        const seed = INITIAL_BILL_TYPES.find((i) => i.id === bt.id);
-        return {
-          ...seed,
-          ...bt,
-          classAmounts: bt.classAmounts || seed?.classAmounts,
-          ekskulFeePerItem: bt.ekskulFeePerItem || seed?.ekskulFeePerItem || 200000,
-        };
-      });
-    } catch {
-      return INITIAL_BILL_TYPES;
+    if (saved !== null) {
+      try {
+        const parsed: BillType[] = JSON.parse(saved);
+        return parsed.map((bt) => {
+          const seed = INITIAL_BILL_TYPES.find((i) => i.id === bt.id);
+          return {
+            ...seed,
+            ...bt,
+            classAmounts: bt.classAmounts || seed?.classAmounts,
+            ekskulFeePerItem: bt.ekskulFeePerItem || seed?.ekskulFeePerItem || 200000,
+          };
+        });
+      } catch {
+        return [];
+      }
     }
+    return INITIAL_BILL_TYPES;
   });
 
   const [bills, setBills] = useState<Bill[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.BILLS);
-    return saved ? JSON.parse(saved) : INITIAL_BILLS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_BILLS;
   });
 
   const [transactions, setTransactions] = useState<PaymentTransaction[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_TRANSACTIONS;
   });
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TEACHERS);
-    if (!saved) return INITIAL_TEACHERS;
-    try {
-      const parsed: Teacher[] = JSON.parse(saved);
-      return parsed.map((t) => {
-        const seed = INITIAL_TEACHERS.find((init) => init.id === t.id || (init.nip && init.nip === t.nip));
-        return {
-          ...seed,
-          ...t,
-          staffType: t.staffType ?? seed?.staffType ?? 'GURU',
-          gender: t.gender ?? seed?.gender ?? 'L',
-          birthPlace: t.birthPlace ?? seed?.birthPlace ?? 'Yogyakarta',
-          birthDate: t.birthDate ?? seed?.birthDate ?? '1985-01-01',
-          religion: t.religion ?? seed?.religion ?? 'Kristen Protestan',
-          maritalStatus: t.maritalStatus ?? seed?.maritalStatus ?? 'Kawin',
-          lastEducation: t.lastEducation ?? seed?.lastEducation ?? 'S1',
-          major: t.major ?? seed?.major ?? '',
-          tmtWorking: t.tmtWorking ?? seed?.tmtWorking ?? '2015-01-01',
-          address: t.address ?? seed?.address ?? 'Yogyakarta',
-        };
-      });
-    } catch {
-      return INITIAL_TEACHERS;
+    if (saved !== null) {
+      try {
+        const parsed: Teacher[] = JSON.parse(saved);
+        return parsed.map((t) => {
+          const seed = INITIAL_TEACHERS.find((init) => init.id === t.id || (init.nip && init.nip === t.nip));
+          return {
+            ...seed,
+            ...t,
+            staffType: t.staffType ?? seed?.staffType ?? 'GURU',
+            gender: t.gender ?? seed?.gender ?? 'L',
+            birthPlace: t.birthPlace ?? seed?.birthPlace ?? 'Yogyakarta',
+            birthDate: t.birthDate ?? seed?.birthDate ?? '1985-01-01',
+            religion: t.religion ?? seed?.religion ?? 'Kristen Protestan',
+            maritalStatus: t.maritalStatus ?? seed?.maritalStatus ?? 'Kawin',
+            lastEducation: t.lastEducation ?? seed?.lastEducation ?? 'S1',
+            major: t.major ?? seed?.major ?? '',
+            tmtWorking: t.tmtWorking ?? seed?.tmtWorking ?? '2015-01-01',
+            address: t.address ?? seed?.address ?? 'Yogyakarta',
+          };
+        });
+      } catch {
+        return [];
+      }
     }
+    return INITIAL_TEACHERS;
   });
 
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PAYROLLS);
-    return saved ? JSON.parse(saved) : INITIAL_PAYROLLS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_PAYROLLS;
   });
 
   const [teachingDocs, setTeachingDocs] = useState<TeachingAdminDoc[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TEACHING_DOCS);
-    return saved ? JSON.parse(saved) : INITIAL_TEACHING_DOCS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_TEACHING_DOCS;
   });
 
   const [assets, setAssets] = useState<InventoryAsset[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.ASSETS);
-    if (!saved) return INITIAL_INVENTORY_ASSETS;
-    try {
-      const parsed: InventoryAsset[] = JSON.parse(saved);
-      return parsed.map((a) => ({
-        ...a,
-        code: a.code.startsWith('INV-') ? `BGT-${a.code}` : a.code,
-      }));
-    } catch {
-      return INITIAL_INVENTORY_ASSETS;
+    if (saved !== null) {
+      try {
+        const parsed: InventoryAsset[] = JSON.parse(saved);
+        return parsed.map((a) => ({
+          ...a,
+          code: a.code.startsWith('INV-') ? `BGT-${a.code}` : a.code,
+        }));
+      } catch {
+        return [];
+      }
     }
+    return INITIAL_INVENTORY_ASSETS;
   });
 
   const [spmbRegistrations, setSpmbRegistrations] = useState<SPMBRegistration[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SPMB);
-    if (!saved) return INITIAL_SPMB_REGISTRATIONS;
-    try {
-      return JSON.parse(saved);
-    } catch {
-      return INITIAL_SPMB_REGISTRATIONS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
     }
+    return INITIAL_SPMB_REGISTRATIONS;
   });
 
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -667,22 +696,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
-    if (!saved) {
-      return INITIAL_REGISTERED_USERS.filter((u) => !isUserDeleted(u));
-    }
-    try {
-      const parsed: AuthUser[] = JSON.parse(saved);
-      const cleaned = parsed.filter((u) => !isUserDeleted(u));
-      const merged = [...cleaned];
-      for (const init of INITIAL_REGISTERED_USERS) {
-        if (!isUserDeleted(init) && !merged.some((u) => u.username.toLowerCase() === init.username.toLowerCase())) {
-          merged.push(init);
-        }
+    if (saved !== null) {
+      try {
+        const parsed: AuthUser[] = JSON.parse(saved);
+        return parsed.filter((u) => !isUserDeleted(u));
+      } catch {
+        return [];
       }
-      return merged;
-    } catch {
-      return INITIAL_REGISTERED_USERS.filter((u) => !isUserDeleted(u));
     }
+    return INITIAL_REGISTERED_USERS.filter((u) => !isUserDeleted(u));
   });
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {

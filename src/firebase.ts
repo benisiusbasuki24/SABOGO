@@ -129,8 +129,26 @@ export async function deleteDocument(
   id: string
 ): Promise<boolean> {
   try {
-    const docRef = doc(db, collectionName, id);
-    await deleteDoc(docRef);
+    // 1. Direct delete by ID
+    try {
+      const docRef = doc(db, collectionName, id);
+      await deleteDoc(docRef);
+    } catch {}
+
+    // 2. Query delete if id is stored inside document field or collection has alternate document ids
+    const querySnapshot = await getDocs(collection(db, collectionName));
+    const batch = writeBatch(db);
+    let count = 0;
+    for (const docSnap of querySnapshot.docs) {
+      const d = docSnap.data();
+      if (docSnap.id === id || d.id === id) {
+        batch.delete(docSnap.ref);
+        count++;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
     return true;
   } catch (err) {
     console.error(`Failed to delete from ${collectionName} [${id}]:`, err);
@@ -399,13 +417,27 @@ export function subscribeUsersFromFirestore(cb: (u: AuthUser[]) => void): () => 
       const localDeleted = (() => {
         try {
           const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
-          const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
-          return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => x.toLowerCase()));
+          if (!raw) return new Set<string>();
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            return new Set(parsed.map((x: string) => String(x).toLowerCase().trim()));
+          }
+          const items = [...(parsed.ids || []), ...(parsed.usernames || []), ...(parsed.items || [])];
+          return new Set(items.map((x: string) => String(x).toLowerCase().trim()));
         } catch {
           return new Set<string>();
         }
       })();
-      const filtered = users.filter((u) => !localDeleted.has(u.id.toLowerCase()) && !localDeleted.has(u.username.toLowerCase()));
+      const filtered = users.filter((u) => {
+        const idLower = u.id ? u.id.toLowerCase() : '';
+        const unameLower = u.username ? u.username.toLowerCase() : '';
+        const emailLower = u.email ? u.email.toLowerCase() : '';
+        return (
+          (!idLower || !localDeleted.has(idLower)) &&
+          (!unameLower || !localDeleted.has(unameLower)) &&
+          (!emailLower || !localDeleted.has(emailLower))
+        );
+      });
       cb(filtered);
     } catch {
       cb(users);
@@ -453,22 +485,28 @@ export async function findUserInFirestore(identifier: string): Promise<AuthUser 
 
 export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<void> {
   try {
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
+    // CRITICAL FIX: If the users collection already has ANY records, it is ALREADY seeded!
+    // Never re-insert deleted users into an existing database on every reload!
+    if (querySnapshot.docs.length > 0) {
+      return;
+    }
+
     const deletedSet = await fetchDeletedItemsFromFirestore('users');
     const localDeleted = (() => {
       try {
         const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
-        const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
-        return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => x.toLowerCase()));
+        if (!raw) return new Set<string>();
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return new Set(parsed.map((x: string) => String(x).toLowerCase()));
+        }
+        return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => String(x).toLowerCase()));
       } catch {
         return new Set<string>();
       }
     })();
 
-    const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
-    const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
-    const existingUsernames = new Set(
-      querySnapshot.docs.map((d) => ((d.data() as AuthUser).username || '').toLowerCase())
-    );
     for (const u of users) {
       const uLower = u.username.toLowerCase();
       // NEVER re-seed if this user has been deleted by Super Admin!
@@ -480,11 +518,7 @@ export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<vo
       ) {
         continue;
       }
-
-      // ONLY seed if the user ID and username do not already exist in Cloud Firestore
-      if (!existingIds.has(u.id) && !existingUsernames.has(uLower)) {
-        await saveUserToFirestore(u);
-      }
+      await saveUserToFirestore(u);
     }
   } catch (err) {
     console.warn('Error seeding users to Firestore:', err);
@@ -498,6 +532,13 @@ export async function seedInitialStudentsToFirestore(students: Student[]): Promi
       return 0;
     }
 
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
+    // CRITICAL FIX: If the students collection already has ANY records, it has ALREADY been seeded!
+    // Never re-insert deleted students back into an active database!
+    if (querySnapshot.docs.length > 0) {
+      return 0;
+    }
+
     const deletedSet = await fetchDeletedItemsFromFirestore('students');
     const localDeleted = (() => {
       try {
@@ -507,10 +548,6 @@ export async function seedInitialStudentsToFirestore(students: Student[]): Promi
         return new Set<string>();
       }
     })();
-
-    const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
-    const existingIds = new Set(querySnapshot.docs.map((d) => d.id));
-    const existingNis = new Set(querySnapshot.docs.map((d) => ((d.data() as Student).nis || '').trim()));
 
     let seeded = 0;
     for (const student of students) {
@@ -525,10 +562,8 @@ export async function seedInitialStudentsToFirestore(students: Student[]): Promi
         continue;
       }
 
-      if (!existingIds.has(student.id) && !existingNis.has(nisClean)) {
-        await saveDocument(COLLECTIONS.STUDENTS, student);
-        seeded++;
-      }
+      await saveDocument(COLLECTIONS.STUDENTS, student);
+      seeded++;
     }
     return seeded;
   } catch (err) {
