@@ -13,6 +13,7 @@ import {
   Clock,
   CreditCard,
   Edit3,
+  ExternalLink,
   Eye,
   EyeOff,
   Filter,
@@ -21,6 +22,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  MessageSquare,
   Phone,
   Plus,
   RefreshCw,
@@ -52,6 +54,12 @@ export const UserRegisterView: React.FC = () => {
     setMainMenu,
     students,
   } = useApp();
+
+  // Active Workspace Tab: 'MODERASI' (Antrean Moderasi Super Admin) vs 'DIREKTORI' (Tabel Seluruh Pengguna)
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'MODERASI' | 'DIREKTORI'>(() => {
+    const hasPending = registeredUsers.some((u) => u.status === 'PENDING');
+    return hasPending ? 'MODERASI' : 'DIREKTORI';
+  });
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,7 +203,8 @@ export const UserRegisterView: React.FC = () => {
     const pendingUsers = registeredUsers.filter((u) => u.status === 'PENDING');
     const pendingCount = pendingUsers.length;
     const approvedCount = registeredUsers.filter((u) => !u.status || u.status === 'APPROVED').length;
-    const rejectedCount = registeredUsers.filter((u) => u.status === 'REJECTED').length;
+    const rejectedUsers = registeredUsers.filter((u) => u.status === 'REJECTED');
+    const rejectedCount = rejectedUsers.length;
 
     return {
       total,
@@ -210,6 +219,7 @@ export const UserRegisterView: React.FC = () => {
       approvedCount,
       rejectedCount,
       pendingUsers,
+      rejectedUsers,
     };
   }, [registeredUsers]);
 
@@ -225,6 +235,14 @@ export const UserRegisterView: React.FC = () => {
     status: UserApprovalStatus,
     reason?: string
   ) => {
+    if (!isSuperAdmin) {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Hanya Super Administrator (Benisius) yang memiliki hak akses memoderasi pendaftaran pengguna.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await moderateUserRegistration(targetUser.id, status, reason);
@@ -252,6 +270,14 @@ export const UserRegisterView: React.FC = () => {
   };
 
   const handleBulkApprovePending = async () => {
+    if (!isSuperAdmin) {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Hanya Super Administrator (Benisius) yang memiliki hak akses memoderasi pendaftaran pengguna.',
+      });
+      return;
+    }
+
     const pending = stats.pendingUsers;
     if (pending.length === 0) return;
 
@@ -597,51 +623,356 @@ export const UserRegisterView: React.FC = () => {
         </button>
       </div>
 
-      {/* Moderation Pending Notice Banner (if any) */}
-      {stats.pendingCount > 0 && (
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in">
-          <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
-              <Clock className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-black text-amber-950">
-                  {stats.pendingCount} Pendaftaran Akun Memerlukan Moderasi Super Admin
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-amber-950 shadow-2xs">
-                  Perlu Verifikasi
-                </span>
+      {/* Workspace Switcher: Moderasi vs Direktori (Khusus Super Administrator) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200/90 shadow-xs">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveWorkspaceTab('MODERASI');
+              setSelectedStatus('PENDING');
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeWorkspaceTab === 'MODERASI'
+                ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-400/40'
+                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-950" />
+            <span>🛡️ Moderasi Pendaftaran Akun</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeWorkspaceTab === 'MODERASI'
+                  ? 'bg-amber-950 text-amber-200'
+                  : stats.pendingCount > 0
+                  ? 'bg-amber-400 text-amber-950 animate-pulse'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {stats.pendingCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveWorkspaceTab('DIREKTORI');
+              setSelectedStatus('ALL');
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              activeWorkspaceTab === 'DIREKTORI'
+                ? 'bg-blue-900 text-white shadow-md ring-2 ring-blue-600/30'
+                : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Users className="w-4 h-4 text-blue-300" />
+            <span>👥 Direktori Semua Pengguna</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeWorkspaceTab === 'DIREKTORI'
+                  ? 'bg-blue-950 text-blue-200'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {stats.total}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px] text-slate-600 font-semibold px-2">
+          <span className="flex items-center gap-1.5 text-blue-900 font-bold bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-700" />
+            Super Administrator: Benisius Rahmat Basuki, S.Pd, Gr
+          </span>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 1. DEDICATED SUPER ADMIN MODERATION WORKSPACE */}
+      {/* ============================================================== */}
+      {activeWorkspaceTab === 'MODERASI' && (
+        <div className="space-y-6">
+          {/* Super Admin Authority Notice */}
+          <div className="p-5 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white rounded-3xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400 text-blue-950 flex items-center justify-center shrink-0 font-black shadow-sm">
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <p className="text-xs text-amber-900 mt-1 leading-relaxed">
-                Pendaftaran untuk role kepegawaian resmi (Kepala Sekolah, Guru, Bendahara, Tata Usaha, Staf) memerlukan persetujuan dari Anda (Benisius R.B). Akun berstatus "Menunggu Moderasi" belum dapat masuk ke sistem.
-              </p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base font-black text-white">
+                    Pusat Moderasi & Persetujuan Registrasi Akun
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-blue-950 shadow-2xs">
+                    Otoritas Tunggal Super Admin
+                  </span>
+                </div>
+                <p className="text-xs text-blue-200 leading-relaxed max-w-2xl">
+                  Registrasi dengan peran <strong>Kepala Sekolah, Guru Pendidik, Bendahara, Tata Usaha, dan Staf</strong> memerlukan moderasi dan persetujuan langsung dari Anda (<strong>Benisius Rahmat Basuki, S.Pd, Gr</strong>) sebelum akun dapat digunakan untuk login ke portal SIBOGO.
+                </p>
+              </div>
             </div>
+
+            {stats.pendingCount > 0 && (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleBulkApprovePending}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Setujui Semua ({stats.pendingCount}) Akun</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-            <button
-              type="button"
-              onClick={() => setSelectedStatus('PENDING')}
-              className="px-3.5 py-2 text-xs font-bold text-amber-950 bg-white border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs"
-            >
-              Lihat Antrean ({stats.pendingCount})
-            </button>
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleBulkApprovePending}
-              className="px-4 py-2 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Setujui Semua ({stats.pendingCount})</span>
-            </button>
+          {/* Pending Applications Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-600" />
+                <h3 className="text-sm font-black text-slate-900">
+                  Antrean Pendaftaran Menunggu Verifikasi ({stats.pendingCount})
+                </h3>
+              </div>
+              {stats.pendingCount > 0 && (
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                  {stats.pendingCount} permohonan butuh tindakan Anda
+                </span>
+              )}
+            </div>
+
+            {stats.pendingCount === 0 ? (
+              <div className="p-10 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-3xl flex items-center justify-center mx-auto">
+                  <BadgeCheck className="w-8 h-8" />
+                </div>
+                <h4 className="text-base font-bold text-slate-800">
+                  Semua Pendaftaran Selesai Dimoderasi!
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Tidak ada permohonan pendaftaran yang sedang menunggu moderasi saat ini. Ketika ada calon guru, staf, atau pimpinan yang mendaftar, mereka akan otomatis tampil di sini secara real-time.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveWorkspaceTab('DIREKTORI');
+                    setSelectedStatus('ALL');
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Buka Direktori Semua Pengguna
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {stats.pendingUsers.map((user) => {
+                  const cleanPhone = (user.phone || '').replace(/[^0-9]/g, '');
+                  const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+                  const waMessage = encodeURIComponent(
+                    `Halo ${user.name}, ini adalah Super Administrator SIBOGO SD BOPKRI Gondolayu (Benisius Rahmat Basuki, S.Pd). Terkait permohonan pendaftaran akun Anda sebagai ${user.role} dengan username @${user.username} dan kode verifikasi #${user.uniqueCode || 'SIBOGO'}.`
+                  );
+
+                  return (
+                    <div
+                      key={user.id}
+                      className="bg-white rounded-3xl border-2 border-amber-300 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 bg-amber-400 text-amber-950 font-black text-[10px] px-3 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>Menunggu Otorisasi</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-900 text-amber-300 flex items-center justify-center text-sm font-black shrink-0 shadow-xs">
+                            {user.name.split(' ').slice(0, 2).map((w) => w[0]).join('')}
+                          </div>
+                          <div className="pr-16">
+                            <h4 className="text-sm font-bold text-slate-900 leading-tight">
+                              {user.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {getRoleBadge(user.role)}
+                              {user.uniqueCode && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  #{user.uniqueCode}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="text-slate-500">Username Login:</span>
+                            <span className="font-mono font-bold text-blue-950">@{user.username}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="text-slate-500">Email:</span>
+                            <span className="font-medium truncate max-w-[180px]">{user.email || '-'}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="text-slate-500">WhatsApp / Telp:</span>
+                            <span className="font-mono font-semibold">{user.phone || '-'}</span>
+                          </div>
+                          {user.nip && (
+                            <div className="flex items-center justify-between text-slate-700">
+                              <span className="text-slate-500">NIP / NIK:</span>
+                              <span className="font-mono font-medium">{user.nip}</span>
+                            </div>
+                          )}
+                          {user.positionTitle && (
+                            <div className="flex items-center justify-between text-slate-700">
+                              <span className="text-slate-500">Jabatan:</span>
+                              <span className="font-medium text-slate-800">{user.positionTitle}</span>
+                            </div>
+                          )}
+                          {user.createdAt && (
+                            <div className="flex items-center justify-between text-slate-500 text-[11px] pt-1 border-t border-slate-200/60">
+                              <span>Waktu Daftar:</span>
+                              <span>{new Date(user.createdAt).toLocaleString('id-ID')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleModerateSingle(user, 'APPROVED')}
+                            className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Setujui & Aktifkan</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => {
+                              setRejectingUser(user);
+                              setRejectionReasonText('');
+                            }}
+                            className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            <span>Tolak</span>
+                          </button>
+                        </div>
+
+                        {cleanPhone && (
+                          <a
+                            href={`https://wa.me/${waNumber}?text=${waMessage}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-1.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Hubungi Pemohon via WhatsApp</span>
+                            <ExternalLink className="w-3 h-3 text-emerald-500" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {/* Rejected Registrations Section (if any) */}
+          {stats.rejectedCount > 0 && (
+            <div className="space-y-3 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-slate-800">
+                <XCircle className="w-4 h-4 text-rose-600" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Riwayat Registrasi Ditolak ({stats.rejectedCount})
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {stats.rejectedUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="p-3.5 bg-rose-50/50 rounded-2xl border border-rose-200 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{user.name}</span>
+                        {getRoleBadge(user.role)}
+                      </div>
+                      <span className="text-[11px] text-slate-500 font-mono">@{user.username} • {user.email}</span>
+                      {user.rejectionReason && (
+                        <p className="text-[11px] text-rose-800 mt-1 italic">
+                          Alasan: "{user.rejectionReason}"
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => handleModerateSingle(user, 'APPROVED')}
+                      className="px-2.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0 shadow-2xs"
+                    >
+                      Pulihkan & Aktifkan
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Moderation Status KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* ============================================================== */}
+      {/* 2. DIREKTORI SEMUA PENGGUNA (TABEL LENGKAP & PENCARIAN) */}
+      {/* ============================================================== */}
+      {activeWorkspaceTab === 'DIREKTORI' && (
+        <div className="space-y-6">
+          {/* Moderation Pending Notice Banner (if any) */}
+          {stats.pendingCount > 0 && (
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+                  <Clock className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-black text-amber-950">
+                      {stats.pendingCount} Pendaftaran Akun Memerlukan Moderasi Super Admin
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-amber-950 shadow-2xs">
+                      Perlu Verifikasi
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                    Pendaftaran untuk role kepegawaian resmi (Kepala Sekolah, Guru, Bendahara, Tata Usaha, Staf) memerlukan persetujuan dari Anda (Benisius R.B).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveWorkspaceTab('MODERASI');
+                    setSelectedStatus('PENDING');
+                  }}
+                  className="px-3.5 py-2 text-xs font-bold text-amber-950 bg-white border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <ShieldAlert className="w-4 h-4 text-amber-800" />
+                  <span>Buka Tab Moderasi ({stats.pendingCount})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Moderation Status KPI Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => setSelectedStatus('ALL')}
@@ -1170,6 +1501,8 @@ export const UserRegisterView: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
+  )}
 
       {/* ============================================================== */}
       {/* MODAL 1: EDIT USER (KHUSUS SUPER ADMIN) */}
@@ -1854,6 +2187,123 @@ export const UserRegisterView: React.FC = () => {
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
                 <span>{isSubmitting ? 'Menghapus...' : 'Ya, Hapus Permanen'}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL 4: TOLAK REGISTRASI AKUN (KHUSUS SUPER ADMIN) */}
+      {/* ============================================================== */}
+      {rejectingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5 text-rose-700">
+                <div className="p-2 bg-rose-100 rounded-xl">
+                  <XCircle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Tolak Pendaftaran Akun
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Otoritas Moderasi Super Administrator (Benisius R.B)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRejectingUser(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                Calon Pengguna:
+              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-800">
+                  {rejectingUser.name}
+                </span>
+                <span className="text-xs font-mono font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  @{rejectingUser.username}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pt-1 text-xs text-slate-600">
+                <span>Peran: <strong>{rejectingUser.role}</strong></span>
+                {rejectingUser.nip && <span>• NIP: {rejectingUser.nip}</span>}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Alasan Penolakan Registrasi <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Tuliskan alasan mengapa pendaftaran ini ditolak..."
+                value={rejectionReasonText}
+                onChange={(e) => setRejectionReasonText(e.target.value)}
+                className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:bg-white text-slate-900 resize-none font-medium"
+              />
+
+              <div className="mt-2 space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 block">Pilihan Alasan Cepat:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Data NIP/NIK tidak sesuai arsip kepegawaian sekolah',
+                    'Bukan pegawai atau guru aktif SD BOPKRI Gondolayu',
+                    'Harap konfirmasi terlebih dahulu ke Bagian Tata Usaha',
+                    'Duplikasi permohonan akun pendaftaran',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setRejectionReasonText(preset)}
+                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-medium rounded-lg transition-colors cursor-pointer text-left"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setRejectingUser(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() =>
+                  handleModerateSingle(
+                    rejectingUser,
+                    'REJECTED',
+                    rejectionReasonText.trim() || 'Data registrasi tidak sesuai atau belum terverifikasi.'
+                  )
+                }
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-400 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <XCircle className="w-3.5 h-3.5" />
+                )}
+                <span>Konfirmasi Tolak Registrasi</span>
               </button>
             </div>
 

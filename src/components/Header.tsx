@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { AppNavTab, MainMenuType } from '../context/AppContext';
 import { BOPKRI_LOGO, handleImageError } from '../assets/logo';
@@ -43,6 +43,7 @@ export const Header: React.FC = () => {
     mainMenu,
     setMainMenu,
     currentUser,
+    registeredUsers,
     logout,
     setIsLoginModalOpen,
     setIsProfileModalOpen,
@@ -52,6 +53,11 @@ export const Header: React.FC = () => {
 
   // Mobile drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Pending user moderation count for Super Admin notification badge
+  const pendingModerationCount = useMemo(() => {
+    return isSuperAdmin ? registeredUsers.filter((u) => u.status === 'PENDING').length : 0;
+  }, [isSuperAdmin, registeredUsers]);
 
   // Role determinations
   const role = currentUser?.role;
@@ -446,11 +452,12 @@ export const Header: React.FC = () => {
         <nav className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
           {mainMenus.map((item) => {
             const isActive = mainMenu === item.id;
+            const isUserRegister = item.id === 'user-register';
             return (
               <button
                 key={item.id}
                 onClick={() => handleSelectMenu(item)}
-                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer relative ${
                   isActive
                     ? 'bg-blue-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -459,6 +466,11 @@ export const Header: React.FC = () => {
               >
                 {item.icon}
                 <span>{item.label}</span>
+                {isUserRegister && pendingModerationCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-blue-950 shadow-xs animate-pulse">
+                    {pendingModerationCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -658,7 +670,14 @@ export const Header: React.FC = () => {
                   <div className="flex items-center gap-2.5">
                     {item.icon}
                     <div>
-                      <span>{item.label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.label}</span>
+                        {item.id === 'user-register' && pendingModerationCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-blue-950">
+                            {pendingModerationCount} Perlu Moderasi
+                          </span>
+                        )}
+                      </div>
                       {item.subLabel && (
                         <span className={`block text-[10px] font-normal ${isActive ? 'text-blue-200' : 'text-slate-400'}`}>
                           {item.subLabel}

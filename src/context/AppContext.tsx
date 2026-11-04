@@ -529,129 +529,142 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [billTypes, setBillTypes] = useState<BillType[]>(() => {
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_BILL_TYPES);
     const saved = localStorage.getItem(STORAGE_KEYS.BILL_TYPES);
     if (saved !== null) {
       try {
         const parsed: BillType[] = JSON.parse(saved);
-        return parsed.map((bt) => {
-          const seed = INITIAL_BILL_TYPES.find((i) => i.id === bt.id);
-          return {
-            ...seed,
-            ...bt,
-            classAmounts: bt.classAmounts || seed?.classAmounts,
-            ekskulFeePerItem: bt.ekskulFeePerItem || seed?.ekskulFeePerItem || 200000,
-          };
-        });
+        return parsed
+          .filter((bt) => !delSet.has(bt.id.toLowerCase()))
+          .map((bt) => {
+            const seed = INITIAL_BILL_TYPES.find((i) => i.id === bt.id);
+            return {
+              ...seed,
+              ...bt,
+              classAmounts: bt.classAmounts || seed?.classAmounts,
+              ekskulFeePerItem: bt.ekskulFeePerItem || seed?.ekskulFeePerItem || 200000,
+            };
+          });
       } catch {
         return [];
       }
     }
-    return INITIAL_BILL_TYPES;
+    return INITIAL_BILL_TYPES.filter((bt) => !delSet.has(bt.id.toLowerCase()));
   });
 
   const [bills, setBills] = useState<Bill[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.BILLS);
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        return (JSON.parse(saved) as Bill[]).filter((b) => !getTombstoneSet(STORAGE_KEYS.DELETED_BILLS).has(b.id.toLowerCase()));
       } catch {
         return [];
       }
     }
-    return INITIAL_BILLS;
+    return INITIAL_BILLS.filter((b) => !getTombstoneSet(STORAGE_KEYS.DELETED_BILLS).has(b.id.toLowerCase()));
   });
 
   const [transactions, setTransactions] = useState<PaymentTransaction[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        return (JSON.parse(saved) as PaymentTransaction[]).filter((t) => !getTombstoneSet(STORAGE_KEYS.DELETED_TRANSACTIONS).has(t.id.toLowerCase()));
       } catch {
         return [];
       }
     }
-    return INITIAL_TRANSACTIONS;
+    return INITIAL_TRANSACTIONS.filter((t) => !getTombstoneSet(STORAGE_KEYS.DELETED_TRANSACTIONS).has(t.id.toLowerCase()));
   });
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TEACHERS);
     if (saved !== null) {
       try {
+        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHERS);
         const parsed: Teacher[] = JSON.parse(saved);
-        return parsed.map((t) => {
-          const seed = INITIAL_TEACHERS.find((init) => init.id === t.id || (init.nip && init.nip === t.nip));
-          return {
-            ...seed,
-            ...t,
-            staffType: t.staffType ?? seed?.staffType ?? 'GURU',
-            gender: t.gender ?? seed?.gender ?? 'L',
-            birthPlace: t.birthPlace ?? seed?.birthPlace ?? 'Yogyakarta',
-            birthDate: t.birthDate ?? seed?.birthDate ?? '1985-01-01',
-            religion: t.religion ?? seed?.religion ?? 'Kristen Protestan',
-            maritalStatus: t.maritalStatus ?? seed?.maritalStatus ?? 'Kawin',
-            lastEducation: t.lastEducation ?? seed?.lastEducation ?? 'S1',
-            major: t.major ?? seed?.major ?? '',
-            tmtWorking: t.tmtWorking ?? seed?.tmtWorking ?? '2015-01-01',
-            address: t.address ?? seed?.address ?? 'Yogyakarta',
-          };
-        });
+        return parsed
+          .filter((t) => !delSet.has(t.id.toLowerCase()) && !(t.nip && delSet.has(t.nip.trim().toLowerCase())))
+          .map((t) => {
+            const seed = INITIAL_TEACHERS.find((init) => init.id === t.id || (init.nip && init.nip === t.nip));
+            return {
+              ...seed,
+              ...t,
+              staffType: t.staffType ?? seed?.staffType ?? 'GURU',
+              gender: t.gender ?? seed?.gender ?? 'L',
+              birthPlace: t.birthPlace ?? seed?.birthPlace ?? 'Yogyakarta',
+              birthDate: t.birthDate ?? seed?.birthDate ?? '1985-01-01',
+              religion: t.religion ?? seed?.religion ?? 'Kristen Protestan',
+              maritalStatus: t.maritalStatus ?? seed?.maritalStatus ?? 'Kawin',
+              lastEducation: t.lastEducation ?? seed?.lastEducation ?? 'S1',
+              major: t.major ?? seed?.major ?? '',
+              tmtWorking: t.tmtWorking ?? seed?.tmtWorking ?? '2015-01-01',
+              address: t.address ?? seed?.address ?? 'Yogyakarta',
+            };
+          });
       } catch {
         return [];
       }
     }
-    return INITIAL_TEACHERS;
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHERS);
+    return INITIAL_TEACHERS.filter((t) => !delSet.has(t.id.toLowerCase()) && !(t.nip && delSet.has(t.nip.trim().toLowerCase())));
   });
 
   const [payrolls, setPayrolls] = useState<PayrollRecord[]>(() => {
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_PAYROLLS);
     const saved = localStorage.getItem(STORAGE_KEYS.PAYROLLS);
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        return (JSON.parse(saved) as PayrollRecord[]).filter((p) => !delSet.has(p.id.toLowerCase()));
       } catch {
         return [];
       }
     }
-    return INITIAL_PAYROLLS;
+    return INITIAL_PAYROLLS.filter((p) => !delSet.has(p.id.toLowerCase()));
   });
 
   const [teachingDocs, setTeachingDocs] = useState<TeachingAdminDoc[]>(() => {
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHING_DOCS);
     const saved = localStorage.getItem(STORAGE_KEYS.TEACHING_DOCS);
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        return (JSON.parse(saved) as TeachingAdminDoc[]).filter((d) => !delSet.has(d.id.toLowerCase()));
       } catch {
         return [];
       }
     }
-    return INITIAL_TEACHING_DOCS;
+    return INITIAL_TEACHING_DOCS.filter((d) => !delSet.has(d.id.toLowerCase()));
   });
 
   const [assets, setAssets] = useState<InventoryAsset[]>(() => {
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_ASSETS);
     const saved = localStorage.getItem(STORAGE_KEYS.ASSETS);
     if (saved !== null) {
       try {
         const parsed: InventoryAsset[] = JSON.parse(saved);
-        return parsed.map((a) => ({
-          ...a,
-          code: a.code.startsWith('INV-') ? `BGT-${a.code}` : a.code,
-        }));
+        return parsed
+          .filter((a) => !delSet.has(a.id.toLowerCase()))
+          .map((a) => ({
+            ...a,
+            code: a.code.startsWith('INV-') ? `BGT-${a.code}` : a.code,
+          }));
       } catch {
         return [];
       }
     }
-    return INITIAL_INVENTORY_ASSETS;
+    return INITIAL_INVENTORY_ASSETS.filter((a) => !delSet.has(a.id.toLowerCase()));
   });
 
   const [spmbRegistrations, setSpmbRegistrations] = useState<SPMBRegistration[]>(() => {
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_SPMB);
     const saved = localStorage.getItem(STORAGE_KEYS.SPMB);
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        return (JSON.parse(saved) as SPMBRegistration[]).filter((r) => !delSet.has(r.id.toLowerCase()));
       } catch {
         return [];
       }
     }
-    return INITIAL_SPMB_REGISTRATIONS;
+    return INITIAL_SPMB_REGISTRATIONS.filter((r) => !delSet.has(r.id.toLowerCase()));
   });
 
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -670,29 +683,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const [registeredUsers, setRegisteredUsers] = useState<AuthUser[]>(() => {
-    let deletedUsernames: string[] = ['mariakristianti', 'agustriyono', 'ortu.jonathan'];
-    let deletedIds: string[] = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_USERS);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          deletedUsernames.push(...parsed.map((x: string) => String(x).toLowerCase()));
-        } else if (parsed && typeof parsed === 'object') {
-          if (Array.isArray(parsed.usernames)) {
-            deletedUsernames.push(...parsed.usernames.map((x: string) => String(x).toLowerCase()));
-          }
-          if (Array.isArray(parsed.ids)) {
-            deletedIds.push(...parsed.ids.map((x: string) => String(x).toLowerCase()));
-          }
-        }
-      }
-    } catch {}
+    const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_USERS);
+    ['mariakristianti', 'agustriyono', 'ortu.jonathan'].forEach((u) => delSet.add(u));
 
-    const isUserDeleted = (u: { id: string; username?: string }) => {
-      const idMatch = deletedIds.includes(u.id.toLowerCase());
-      const unameMatch = u.username ? deletedUsernames.includes(u.username.toLowerCase()) : false;
-      return idMatch || unameMatch;
+    const isUserDeleted = (u: { id: string; username?: string; email?: string }) => {
+      const idMatch = u.id ? delSet.has(u.id.toLowerCase()) : false;
+      const unameMatch = u.username ? delSet.has(u.username.toLowerCase()) : false;
+      const emailMatch = u.email ? delSet.has(u.email.toLowerCase()) : false;
+      return idMatch || unameMatch || emailMatch;
     };
 
     const saved = localStorage.getItem(STORAGE_KEYS.REGISTERED_USERS);
@@ -865,6 +863,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
+  // 30-Minute Inactivity Auto-Logout for Security
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // 30 minutes in milliseconds
+    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const performInactivityLogout = () => {
+      logout();
+      showToast('Sesi Anda telah berakhir demi keamanan karena tidak ada aktivitas selama 30 menit. Silakan masuk kembali.', 'warning');
+    };
+
+    const resetTimer = () => {
+      if (timerId) clearTimeout(timerId);
+      timerId = setTimeout(performInactivityLogout, INACTIVITY_TIMEOUT_MS);
+    };
+
+    // Start timer immediately upon login or active session
+    resetTimer();
+
+    // User interaction events to reset the timer
+    const activityEvents: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    let lastRecordedActivity = Date.now();
+
+    const onUserActivity = () => {
+      const now = Date.now();
+      // Throttle resetting the timeout to once every 2 seconds to avoid unnecessary CPU cycles
+      if (now - lastRecordedActivity > 2000) {
+        lastRecordedActivity = now;
+        resetTimer();
+      }
+    };
+
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, onUserActivity, { passive: true });
+    });
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, onUserActivity);
+      });
+    };
+  }, [currentUser]);
+
   const [activeReceipt, setActiveReceipt] = useState<PaymentTransaction | null>(null);
   const [activePayingBill, setActivePayingBill] = useState<Bill | null>(null);
   const [activeSlip, setActiveSlip] = useState<PayrollRecord | null>(null);
@@ -974,17 +1018,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
       if (cloudStudents && cloudStudents.length > 0) {
-        let deletedStudentIds: string[] = [];
-        try {
-          const delStr = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
-          if (delStr) deletedStudentIds = JSON.parse(delStr).map((x: string) => String(x).toLowerCase());
-        } catch {}
-
+        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_STUDENTS);
         const filtered = cloudStudents
           .filter(
             (s) =>
-              !deletedStudentIds.includes(s.id.toLowerCase()) &&
-              !(s.nis && deletedStudentIds.includes(s.nis.trim().toLowerCase()))
+              !delSet.has(s.id.toLowerCase()) &&
+              !(s.nis && delSet.has(s.nis.trim().toLowerCase()))
           )
           .map((s) => ({
             ...s,
@@ -1001,39 +1040,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 4. Real-time subscription to Bills across all devices
     const unsubscribeBills = subscribeBillsFromFirestore((cloudBills) => {
-      setBills(cloudBills);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_BILLS);
+      const filtered = (cloudBills || []).filter((b) => !delSet.has(b.id.toLowerCase()));
+      setBills(filtered);
+      localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(filtered));
     });
 
     // 5. Real-time subscription to Transactions (Kwitansi) across all devices
     const unsubscribeTransactions = subscribeTransactionsFromFirestore((cloudTx) => {
-      setTransactions(cloudTx);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TRANSACTIONS);
+      const filtered = (cloudTx || []).filter((t) => !delSet.has(t.id.toLowerCase()));
+      setTransactions(filtered);
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(filtered));
     });
 
     // 6. Real-time subscription to Payrolls across all devices
     const unsubscribePayrolls = subscribePayrollsFromFirestore((cloudPayrolls) => {
-      setPayrolls(cloudPayrolls);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_PAYROLLS);
+      const filtered = (cloudPayrolls || []).filter((p) => !delSet.has(p.id.toLowerCase()));
+      setPayrolls(filtered);
+      localStorage.setItem(STORAGE_KEYS.PAYROLLS, JSON.stringify(filtered));
     });
 
     // 7. Real-time subscription to Inventory Assets across all devices
     const unsubscribeInventory = subscribeInventoryFromFirestore((cloudAssets) => {
-      setAssets(cloudAssets);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_ASSETS);
+      const filtered = (cloudAssets || []).filter((a) => !delSet.has(a.id.toLowerCase()));
+      setAssets(filtered);
+      localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(filtered));
     });
 
     // 8. Real-time subscription to Teaching Docs across all devices
     const unsubscribeTeachingDocs = subscribeTeachingDocsFromFirestore((cloudDocs) => {
-      setTeachingDocs(cloudDocs);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHING_DOCS);
+      const filtered = (cloudDocs || []).filter((d) => !delSet.has(d.id.toLowerCase()));
+      setTeachingDocs(filtered);
+      localStorage.setItem(STORAGE_KEYS.TEACHING_DOCS, JSON.stringify(filtered));
     });
 
     // 9. Real-time subscription to SPMB registrations across all devices
     const unsubscribeSpmb = subscribeSpmbFromFirestore((cloudSpmb) => {
-      setSpmbRegistrations(cloudSpmb);
+      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_SPMB);
+      const filtered = (cloudSpmb || []).filter((r) => !delSet.has(r.id.toLowerCase()));
+      setSpmbRegistrations(filtered);
+      localStorage.setItem(STORAGE_KEYS.SPMB, JSON.stringify(filtered));
     });
 
     // 10. Real-time subscription to Teachers & Staff master
     const unsubscribeTeachers = subscribeTeachersFromFirestore((cloudTeachers) => {
       if (cloudTeachers && cloudTeachers.length > 0) {
-        setTeachers(cloudTeachers);
-        localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(cloudTeachers));
+        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHERS);
+        const filtered = cloudTeachers.filter(
+          (t) => !delSet.has(t.id.toLowerCase()) && !(t.nip && delSet.has(t.nip.trim().toLowerCase()))
+        );
+        setTeachers(filtered);
+        localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(filtered));
 
         // Keep logged-in user in sync with teacher record changes across devices
         setCurrentUser((curr) => {
@@ -1070,9 +1131,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 11. Real-time subscription to Bill Types
     const unsubscribeBillTypes = subscribeBillTypesFromFirestore((cloudBillTypes) => {
-      if (cloudBillTypes && cloudBillTypes.length > 0) {
-        setBillTypes(cloudBillTypes);
-        localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(cloudBillTypes));
+      if (cloudBillTypes) {
+        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_BILL_TYPES);
+        const filtered = cloudBillTypes.filter((bt) => !delSet.has(bt.id.toLowerCase()));
+        setBillTypes(filtered);
+        localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(filtered));
       }
     });
 
@@ -1393,6 +1456,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
     setIsLoginModalOpen(false);
     setIsProfileModalOpen(false);
+    setMainMenuState('keuangan');
+    setActiveTabRaw('dashboard');
   };
 
   const switchUser = (user: AuthUser) => {
@@ -1408,6 +1473,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     status: UserApprovalStatus,
     reason?: string
   ): Promise<{ success: boolean; message: string }> => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Administrator (Benisius) yang memiliki hak akses memoderasi pendaftaran akun.', 'warning');
+      return { success: false, message: 'Hanya Super Administrator yang berhak memoderasi pengguna.' };
+    }
+
     const targetUser = registeredUsers.find((u) => u.id === userId);
     if (!targetUser) {
       return { success: false, message: 'Data pengguna tidak ditemukan.' };
@@ -1447,6 +1517,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     userIds: string[],
     status: UserApprovalStatus
   ): Promise<{ success: boolean; count: number }> => {
+    if (!isSuperAdmin) {
+      showToast('Hanya Super Administrator (Benisius) yang memiliki hak akses memoderasi pendaftaran akun.', 'warning');
+      return { success: false, count: 0 };
+    }
+
     let count = 0;
     const now = new Date().toISOString();
     const adminName = currentUser?.name || 'Benisius Rahmat Basuki (SuperAdmin)';
@@ -1725,19 +1800,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      // Record to persistent localStorage deleted users tombstone
-      try {
-        const raw = localStorage.getItem(STORAGE_KEYS.DELETED_USERS);
-        const parsed = raw ? JSON.parse(raw) : { ids: [], usernames: [] };
-        const ids = Array.isArray(parsed) ? parsed : Array.isArray(parsed.ids) ? parsed.ids : [];
-        const usernames = Array.isArray(parsed.usernames) ? parsed.usernames : [];
-        if (!ids.includes(userId)) ids.push(userId);
-        if (targetUser.username && !usernames.includes(targetUser.username.toLowerCase())) {
-          usernames.push(targetUser.username.toLowerCase());
-        }
-        localStorage.setItem(STORAGE_KEYS.DELETED_USERS, JSON.stringify({ ids, usernames }));
-      } catch {}
-
+      recordTombstone(STORAGE_KEYS.DELETED_USERS, userId, targetUser.username, targetUser.email);
       await deleteUserFromFirestore(userId, targetUser.username);
 
       setRegisteredUsers((prev) => {
@@ -1745,6 +1808,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(next));
         return next;
       });
+
+      // Also clean up corresponding teacher if any so they do not recreate each other
+      if (targetUser.teacherId || targetUser.nip) {
+        setTeachers((prevT) => {
+          const matchT = prevT.find((t) => (targetUser.teacherId && t.id === targetUser.teacherId) || (targetUser.nip && t.nip === targetUser.nip));
+          if (matchT) {
+            recordTombstone(STORAGE_KEYS.DELETED_TEACHERS, matchT.id, matchT.nip);
+            deleteTeacherFromFirestore(matchT.id).catch(() => {});
+            const nextT = prevT.filter((t) => t.id !== matchT.id);
+            localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(nextT));
+            return nextT;
+          }
+          return prevT;
+        });
+      }
 
       showToast(`User "${targetUser.name}" (@${targetUser.username}) berhasil dihapus permanen dari Cloud Firestore.`, 'info');
       return { success: true, message: 'Pengguna berhasil dihapus permanen dari Cloud Firestore.' };
@@ -1888,9 +1966,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus berkas administrasi.', 'warning');
       return;
     }
-    setTeachingDocs((prev) => prev.filter((d) => d.id !== id));
+    recordTombstone(STORAGE_KEYS.DELETED_TEACHING_DOCS, id);
+    setTeachingDocs((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      localStorage.setItem(STORAGE_KEYS.TEACHING_DOCS, JSON.stringify(next));
+      return next;
+    });
     deleteTeachingDocFromFirestore(id).catch((e) => console.warn('Cloud sync doc delete:', e));
-    showToast('Berkas administrasi ajar berhasil dihapus.', 'info');
+    showToast('Berkas administrasi ajar berhasil dihapus permanen.', 'info');
   };
 
   const deleteTeachingDocsBulk = (ids: string[]): number => {
@@ -1898,10 +1981,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus berkas administrasi.', 'warning');
       return 0;
     }
+    recordTombstone(STORAGE_KEYS.DELETED_TEACHING_DOCS, ...ids);
     const idSet = new Set(ids);
-    setTeachingDocs((prev) => prev.filter((d) => !idSet.has(d.id)));
+    setTeachingDocs((prev) => {
+      const next = prev.filter((d) => !idSet.has(d.id));
+      localStorage.setItem(STORAGE_KEYS.TEACHING_DOCS, JSON.stringify(next));
+      return next;
+    });
     ids.forEach((id) => deleteTeachingDocFromFirestore(id).catch(() => {}));
-    showToast(`${ids.length} berkas administrasi ajar berhasil dihapus.`, 'info');
+    showToast(`${ids.length} berkas administrasi ajar berhasil dihapus permanen.`, 'info');
     return ids.length;
   };
 
@@ -1992,21 +2080,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    // Record to persistent deleted students tombstone
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
-      const delList: string[] = raw ? JSON.parse(raw) : [];
-      if (!delList.includes(id)) delList.push(id);
-      if (targetStudent?.nis && !delList.includes(targetStudent.nis.trim())) delList.push(targetStudent.nis.trim());
-      localStorage.setItem(STORAGE_KEYS.DELETED_STUDENTS, JSON.stringify(delList));
-    } catch {}
-
+    recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, id, targetStudent?.nis);
     deleteStudentFromFirestore(id, targetStudent?.nis).catch(() => {});
     if (deleteRelatedBills) {
       setBills((prev) => {
         const remaining: Bill[] = [];
         prev.forEach((b) => {
           if (b.studentId === id) {
+            recordTombstone(STORAGE_KEYS.DELETED_BILLS, b.id);
             deleteBillFromFirestore(b.id).catch(() => {});
           } else {
             remaining.push(b);
@@ -2026,21 +2107,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const idSet = new Set(ids);
     const deletedStudents = students.filter((s) => idSet.has(s.id));
+    deletedStudents.forEach((st) => {
+      recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, st.id, st.nis);
+    });
+
     setStudents((prev) => {
       const next = prev.filter((s) => !idSet.has(s.id));
       localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(next));
       return next;
     });
-
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.DELETED_STUDENTS);
-      const delList: string[] = raw ? JSON.parse(raw) : [];
-      deletedStudents.forEach((st) => {
-        if (!delList.includes(st.id)) delList.push(st.id);
-        if (st.nis && !delList.includes(st.nis.trim())) delList.push(st.nis.trim());
-      });
-      localStorage.setItem(STORAGE_KEYS.DELETED_STUDENTS, JSON.stringify(delList));
-    } catch {}
 
     deletedStudents.forEach((st) => deleteStudentFromFirestore(st.id, st.nis).catch(() => {}));
     if (deleteRelatedBills) {
@@ -2048,6 +2123,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const remaining: Bill[] = [];
         prev.forEach((b) => {
           if (idSet.has(b.studentId)) {
+            recordTombstone(STORAGE_KEYS.DELETED_BILLS, b.id);
             deleteBillFromFirestore(b.id).catch(() => {});
           } else {
             remaining.push(b);
@@ -2210,9 +2286,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus pos tagihan.', 'warning');
       return;
     }
-    setBillTypes((prev) => prev.filter((bt) => bt.id !== id));
+    recordTombstone(STORAGE_KEYS.DELETED_BILL_TYPES, id);
+    setBillTypes((prev) => {
+      const next = prev.filter((bt) => bt.id !== id);
+      localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(next));
+      return next;
+    });
     deleteBillTypeFromFirestore(id).catch(() => {});
-    showToast('Pos tagihan berhasil dihapus.', 'info');
+    showToast('Pos tagihan berhasil dihapus permanen.', 'info');
   };
 
   const deleteBillTypesBulk = (ids: string[]): number => {
@@ -2220,10 +2301,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus pos tagihan.', 'warning');
       return 0;
     }
+    recordTombstone(STORAGE_KEYS.DELETED_BILL_TYPES, ...ids);
     const idSet = new Set(ids);
-    setBillTypes((prev) => prev.filter((bt) => !idSet.has(bt.id)));
+    setBillTypes((prev) => {
+      const next = prev.filter((bt) => !idSet.has(bt.id));
+      localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(next));
+      return next;
+    });
     ids.forEach((id) => deleteBillTypeFromFirestore(id).catch(() => {}));
-    showToast(`${ids.length} pos tagihan berhasil dihapus.`, 'info');
+    showToast(`${ids.length} pos tagihan berhasil dihapus permanen.`, 'info');
     return ids.length;
   };
 
@@ -2271,9 +2357,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus tagihan.', 'warning');
       return;
     }
-    setBills((prev) => prev.filter((b) => b.id !== billId));
+    recordTombstone(STORAGE_KEYS.DELETED_BILLS, billId);
+    setBills((prev) => {
+      const next = prev.filter((b) => b.id !== billId);
+      localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(next));
+      return next;
+    });
     deleteBillFromFirestore(billId).catch(() => {});
-    showToast('Tagihan berhasil dihapus.', 'info');
+    showToast('Tagihan berhasil dihapus permanen.', 'info');
   };
 
   const deleteBillsBulk = (billIds: string[]): number => {
@@ -2281,10 +2372,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus tagihan.', 'warning');
       return 0;
     }
+    recordTombstone(STORAGE_KEYS.DELETED_BILLS, ...billIds);
     const idSet = new Set(billIds);
-    setBills((prev) => prev.filter((b) => !idSet.has(b.id)));
+    setBills((prev) => {
+      const next = prev.filter((b) => !idSet.has(b.id));
+      localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(next));
+      return next;
+    });
     billIds.forEach((id) => deleteBillFromFirestore(id).catch(() => {}));
-    showToast(`${billIds.length} tagihan berhasil dihapus.`, 'info');
+    showToast(`${billIds.length} tagihan berhasil dihapus permanen.`, 'info');
     return billIds.length;
   };
 
@@ -2512,9 +2608,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const tx = transactions.find((t) => t.id === id);
     if (!tx) return;
 
+    recordTombstone(STORAGE_KEYS.DELETED_TRANSACTIONS, id);
+
     if (revertBillPaidAmount && tx.billId) {
-      setBills((prev) =>
-        prev.map((b) => {
+      setBills((prev) => {
+        const next = prev.map((b) => {
           if (b.id === tx.billId) {
             const updatedPaid = Math.max(0, (b.paidAmount || 0) - tx.amount);
             let updatedStatus: PaymentStatus = 'BELUM_BAYAR';
@@ -2535,13 +2633,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             return reverted;
           }
           return b;
-        })
-      );
+        });
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(next));
+        return next;
+      });
     }
 
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    setTransactions((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(next));
+      return next;
+    });
     deleteTransactionFromFirestore(id).catch(() => {});
-    showToast('Transaksi pembayaran berhasil dihapus.', 'info');
+    showToast('Transaksi pembayaran berhasil dihapus permanen.', 'info');
   };
 
   const deleteTransactionsBulk = (ids: string[], revertBillPaidAmount: boolean = true): number => {
@@ -2701,22 +2805,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data guru/staf.', 'warning');
       return;
     }
-    setTeachers((prev) => prev.filter((t) => t.id !== id));
+    const target = teachers.find((t) => t.id === id);
+    recordTombstone(STORAGE_KEYS.DELETED_TEACHERS, id, target?.nip);
+
+    setTeachers((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(next));
+      return next;
+    });
     deleteTeacherFromFirestore(id).catch(() => {});
+
+    // Also remove matching user from registeredUsers so it doesn't resurrect
+    setRegisteredUsers((prevUsers) => {
+      const matchedUser = prevUsers.find((u) => (u.teacherId && u.teacherId === id) || (target?.nip && u.nip === target.nip));
+      if (matchedUser) {
+        recordTombstone(STORAGE_KEYS.DELETED_USERS, matchedUser.id, matchedUser.username);
+        deleteUserFromFirestore(matchedUser.id, matchedUser.username).catch(() => {});
+        const nextUsers = prevUsers.filter((u) => u.id !== matchedUser.id);
+        localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(nextUsers));
+        return nextUsers;
+      }
+      return prevUsers;
+    });
+
     if (deleteRelatedPayrolls) {
       setPayrolls((prev) => {
         const remaining: PayrollRecord[] = [];
         prev.forEach((p) => {
           if (p.teacherId === id) {
+            recordTombstone(STORAGE_KEYS.DELETED_PAYROLLS, p.id);
             deletePayrollFromFirestore(p.id).catch(() => {});
           } else {
             remaining.push(p);
           }
         });
+        localStorage.setItem(STORAGE_KEYS.PAYROLLS, JSON.stringify(remaining));
         return remaining;
       });
     }
-    showToast('Data guru/staf berhasil dihapus.', 'info');
+    showToast('Data guru/staf berhasil dihapus permanen.', 'info');
   };
 
   const deleteTeachersBulk = (ids: string[], deleteRelatedPayrolls: boolean = false): number => {
@@ -2724,23 +2851,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data guru/staf.', 'warning');
       return 0;
     }
-    const idSet = new Set(ids);
-    setTeachers((prev) => prev.filter((t) => !idSet.has(t.id)));
-    ids.forEach((id) => deleteTeacherFromFirestore(id).catch(() => {}));
-    if (deleteRelatedPayrolls) {
-      setPayrolls((prev) => {
-        const remaining: PayrollRecord[] = [];
-        prev.forEach((p) => {
-          if (idSet.has(p.teacherId)) {
-            deletePayrollFromFirestore(p.id).catch(() => {});
-          } else {
-            remaining.push(p);
-          }
-        });
-        return remaining;
-      });
-    }
-    showToast(`${ids.length} data guru/staf berhasil dihapus.`, 'info');
+    ids.forEach((id) => deleteTeacher(id, deleteRelatedPayrolls));
     return ids.length;
   };
 
@@ -2900,9 +3011,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus slip penggajian.', 'warning');
       return;
     }
-    setPayrolls((prev) => prev.filter((p) => p.id !== id));
+    recordTombstone(STORAGE_KEYS.DELETED_PAYROLLS, id);
+    setPayrolls((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      localStorage.setItem(STORAGE_KEYS.PAYROLLS, JSON.stringify(next));
+      return next;
+    });
     deletePayrollFromFirestore(id).catch(() => {});
-    showToast('Slip penggajian berhasil dihapus.', 'info');
+    showToast('Slip penggajian berhasil dihapus permanen.', 'info');
   };
 
   const deletePayrollsBulk = (ids: string[]): number => {
@@ -2910,10 +3026,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus slip penggajian.', 'warning');
       return 0;
     }
+    recordTombstone(STORAGE_KEYS.DELETED_PAYROLLS, ...ids);
     const idSet = new Set(ids);
-    setPayrolls((prev) => prev.filter((p) => !idSet.has(p.id)));
+    setPayrolls((prev) => {
+      const next = prev.filter((p) => !idSet.has(p.id));
+      localStorage.setItem(STORAGE_KEYS.PAYROLLS, JSON.stringify(next));
+      return next;
+    });
     ids.forEach((id) => deletePayrollFromFirestore(id).catch(() => {}));
-    showToast(`${ids.length} data slip penggajian berhasil dihapus.`, 'info');
+    showToast(`${ids.length} data slip penggajian berhasil dihapus permanen.`, 'info');
     return ids.length;
   };
 
@@ -2987,7 +3108,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus aset inventaris.', 'warning');
       return;
     }
-    setAssets((prev) => prev.filter((item) => item.id !== id));
+    recordTombstone(STORAGE_KEYS.DELETED_ASSETS, id);
+    setAssets((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
     deleteInventoryFromFirestore(id).catch(() => {});
     showToast('Aset inventaris berhasil dihapus.', 'info');
   };
@@ -2997,8 +3127,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus aset inventaris.', 'warning');
       return 0;
     }
+    recordTombstone(STORAGE_KEYS.DELETED_ASSETS, ...ids);
     const idSet = new Set(ids);
-    setAssets((prev) => prev.filter((item) => !idSet.has(item.id)));
+    setAssets((prev) => {
+      const next = prev.filter((item) => !idSet.has(item.id));
+      try {
+        localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
     ids.forEach((id) => deleteInventoryFromFirestore(id).catch(() => {}));
     showToast(`${ids.length} aset inventaris berhasil dihapus.`, 'info');
     return ids.length;
@@ -3071,7 +3210,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses menghapus data pendaftaran.', 'warning');
       return;
     }
-    setSpmbRegistrations((prev) => prev.filter((r) => r.id !== id));
+    recordTombstone(STORAGE_KEYS.DELETED_SPMB, id);
+    setSpmbRegistrations((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEYS.SPMB, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
     deleteSpmbFromFirestore(id).catch(() => {});
     showToast('Data calon murid berhasil dihapus.', 'info');
   };
@@ -3124,43 +3272,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (module === 'students' || module === 'all') {
         setStudents([]);
-        localStorage.removeItem(STORAGE_KEYS.STUDENTS);
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, '[]');
         localStorage.setItem('SIBOGO_STUDENTS_PURGED', 'true');
         await purgeCollectionInFirestore(COLLECTIONS.STUDENTS);
       }
       if (module === 'bills' || module === 'all') {
         setBills([]);
-        localStorage.removeItem(STORAGE_KEYS.BILLS);
+        localStorage.setItem(STORAGE_KEYS.BILLS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.BILLS);
       }
       if (module === 'transactions' || module === 'all') {
         setTransactions([]);
-        localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.TRANSACTIONS);
       }
       if (module === 'billTypes' || module === 'all') {
         setBillTypes([]);
-        localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
+        localStorage.setItem(STORAGE_KEYS.BILL_TYPES, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.BILL_TYPES);
       }
       if (module === 'teachers' || module === 'all') {
         setTeachers([]);
-        localStorage.removeItem(STORAGE_KEYS.TEACHERS);
+        localStorage.setItem(STORAGE_KEYS.TEACHERS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.TEACHERS);
       }
       if (module === 'payrolls' || module === 'all') {
         setPayrolls([]);
-        localStorage.removeItem(STORAGE_KEYS.PAYROLLS);
+        localStorage.setItem(STORAGE_KEYS.PAYROLLS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.PAYROLLS);
       }
       if (module === 'teachingDocs' || module === 'all') {
         setTeachingDocs([]);
-        localStorage.removeItem(STORAGE_KEYS.TEACHING_DOCS);
+        localStorage.setItem(STORAGE_KEYS.TEACHING_DOCS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.TEACHING_DOCS);
       }
       if (module === 'assets' || module === 'all') {
         setAssets([]);
-        localStorage.removeItem(STORAGE_KEYS.ASSETS);
+        localStorage.setItem(STORAGE_KEYS.ASSETS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.INVENTORY);
       }
       showToast('Data modul berhasil dikosongkan secara permanen di Cloud Firestore.', 'info');
