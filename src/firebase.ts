@@ -186,44 +186,185 @@ export async function purgeCollectionInFirestore(
   }
 }
 
-// Persistent tombstone record in Firestore so deleted items never re-seed
-export async function recordDeletedItemInFirestore(
+// ============================================================================
+// CLOUD TOMBSTONES & PURGED MODULES FOR MULTI-DEVICE & INCOGNITO SYNC
+// ============================================================================
+export type TombstoneModule =
+  | 'users'
+  | 'students'
+  | 'bills'
+  | 'transactions'
+  | 'teachers'
+  | 'payrolls'
+  | 'inventory_assets'
+  | 'teaching_docs'
+  | 'spmb'
+  | 'bill_types';
+
+// Persistent tombstone record in Firestore so deleted items NEVER re-seed or re-appear across ANY device
+export async function recordCloudTombstone(
+  module: string,
+  ...identifiers: (string | undefined | null)[]
+): Promise<void> {
+  try {
+    const validIds = identifiers
+      .filter((x): x is string => Boolean(x && typeof x === 'string' && x.trim().length > 0))
+      .map((x) => x.trim().toLowerCase());
+    if (validIds.length === 0) return;
+
+    const docRef = doc(db, COLLECTIONS.SYSTEM_CONFIG, 'tombstones');
+    const snap = await getDocFromServer(docRef).catch(() => null);
+    const data = (snap && snap.exists() ? snap.data() : {}) as Record<string, any>;
+    const currentList: string[] = Array.isArray(data[module]) ? data[module] : [];
+    const merged = Array.from(new Set([...currentList, ...validIds]));
+
+    await setDoc(
+      docRef,
+      {
+        [module]: merged,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn(`recordCloudTombstone error [${module}]:`, err);
+  }
+}
+
+// Backward-compatible alias
+export const recordDeletedItemInFirestore = (
   type: 'users' | 'students',
   identifier: string,
   secondaryIdentifier?: string
+) => recordCloudTombstone(type, identifier, secondaryIdentifier);
+
+export async function fetchCloudTombstones(): Promise<Record<string, Set<string>>> {
+  try {
+    const snap = await getDocFromServer(doc(db, COLLECTIONS.SYSTEM_CONFIG, 'tombstones')).catch(() => null);
+    const result: Record<string, Set<string>> = {};
+    if (snap && snap.exists()) {
+      const data = snap.data();
+      for (const [key, val] of Object.entries(data)) {
+        if (Array.isArray(val)) {
+          result[key] = new Set(val.map((x) => String(x).toLowerCase().trim()));
+        }
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export function subscribeCloudTombstones(
+  cb: (tombstones: Record<string, Set<string>>) => void
+): () => void {
+  try {
+    return onSnapshot(
+      doc(db, COLLECTIONS.SYSTEM_CONFIG, 'tombstones'),
+      (snap) => {
+        const result: Record<string, Set<string>> = {};
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          for (const [key, val] of Object.entries(data)) {
+            if (Array.isArray(val)) {
+              result[key] = new Set(val.map((x) => String(x).toLowerCase().trim()));
+            }
+          }
+        }
+        cb(result);
+      },
+      (err) => {
+        console.warn('Real-time listener for cloud tombstones warning:', err);
+      }
+    );
+  } catch (err) {
+    console.warn('Could not attach cloud tombstones listener:', err);
+    return () => {};
+  }
+}
+
+export async function clearCloudTombstones(): Promise<void> {
+  try {
+    await setDoc(doc(db, COLLECTIONS.SYSTEM_CONFIG, 'tombstones'), { updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.warn('clearCloudTombstones error:', err);
+  }
+}
+
+// Module purge state in Cloud Firestore (students, bills, transactions, etc.)
+export async function savePurgedModuleToFirestore(
+  module: string,
+  isPurged: boolean = true
 ): Promise<void> {
   try {
-    const docRef = doc(db, COLLECTIONS.SYSTEM_CONFIG, `deleted_${type}`);
-    const querySnapshot = await getDocs(collection(db, COLLECTIONS.SYSTEM_CONFIG));
-    const targetDoc = querySnapshot.docs.find((d) => d.id === `deleted_${type}`);
-    const data = targetDoc?.data() || { items: [] };
-    const items: string[] = data.items || [];
-    items.push(identifier.toLowerCase());
-    if (secondaryIdentifier) {
-      items.push(secondaryIdentifier.toLowerCase());
-    }
-    const uniqueItems = Array.from(new Set(items));
-    await setDoc(docRef, { items: uniqueItems, updatedAt: new Date().toISOString() }, { merge: true });
+    const docRef = doc(db, COLLECTIONS.SYSTEM_CONFIG, 'purged_modules');
+    await setDoc(
+      docRef,
+      {
+        [module]: isPurged,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
   } catch (err) {
-    console.warn(`Could not record deleted ${type} in Firestore:`, err);
+    console.warn(`savePurgedModuleToFirestore error [${module}]:`, err);
+  }
+}
+
+export function subscribePurgedModules(
+  cb: (purged: Record<string, boolean>) => void
+): () => void {
+  try {
+    return onSnapshot(
+      doc(db, COLLECTIONS.SYSTEM_CONFIG, 'purged_modules'),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          const result: Record<string, boolean> = {};
+          for (const [key, val] of Object.entries(data)) {
+            if (typeof val === 'boolean') {
+              result[key] = val;
+            }
+          }
+          cb(result);
+        } else {
+          cb({});
+        }
+      },
+      (err) => console.warn('purged_modules listener warning:', err)
+    );
+  } catch {
+    return () => {};
+  }
+}
+
+export async function isModulePurgedInFirestore(module: string): Promise<boolean> {
+  try {
+    const snap = await getDocFromServer(doc(db, COLLECTIONS.SYSTEM_CONFIG, 'purged_modules')).catch(() => null);
+    if (snap && snap.exists()) {
+      const data = snap.data();
+      return Boolean(data[module] || data['all']);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearPurgedModulesInFirestore(): Promise<void> {
+  try {
+    await setDoc(doc(db, COLLECTIONS.SYSTEM_CONFIG, 'purged_modules'), { updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.warn('clearPurgedModulesInFirestore error:', err);
   }
 }
 
 export async function fetchDeletedItemsFromFirestore(
   type: 'users' | 'students'
 ): Promise<Set<string>> {
-  try {
-    const querySnapshot = await getDocs(collection(db, COLLECTIONS.SYSTEM_CONFIG));
-    const targetDoc = querySnapshot.docs.find((d) => d.id === `deleted_${type}`);
-    if (targetDoc && targetDoc.exists()) {
-      const data = targetDoc.data();
-      const items: string[] = (data.items || []).map((x: any) => String(x).toLowerCase());
-      return new Set(items);
-    }
-    return new Set();
-  } catch {
-    return new Set();
-  }
+  const allTombstones = await fetchCloudTombstones();
+  return allTombstones[type] || new Set();
 }
 
 // ============================================================================
@@ -231,7 +372,7 @@ export async function fetchDeletedItemsFromFirestore(
 // ============================================================================
 export const saveStudentToFirestore = (student: Student) => saveDocument(COLLECTIONS.STUDENTS, student);
 
-export async function deleteStudentFromFirestore(id: string, nis?: string): Promise<boolean> {
+export async function deleteStudentFromFirestore(id: string, nis?: string, name?: string): Promise<boolean> {
   try {
     // 1. Delete by direct ID
     try {
@@ -239,16 +380,19 @@ export async function deleteStudentFromFirestore(id: string, nis?: string): Prom
       await deleteDoc(docRef);
     } catch {}
 
-    // 2. Also search all docs in students collection for matching id or nis
+    // 2. Also search all docs in students collection for matching id, nis, or normalized name
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
     const batch = writeBatch(db);
     let count = 0;
     const cleanNis = (nis || '').trim();
+    const cleanName = (name || '').trim().toLowerCase();
+
     for (const docSnap of querySnapshot.docs) {
       const s = docSnap.data() as Student;
       const matchId = docSnap.id === id || s.id === id;
-      const matchNis = cleanNis && s.nis && s.nis.trim() === cleanNis;
-      if (matchId || matchNis) {
+      const matchNis = Boolean(cleanNis && s.nis && s.nis.trim() === cleanNis);
+      const matchName = Boolean(cleanName && s.name && s.name.trim().toLowerCase() === cleanName);
+      if (matchId || matchNis || matchName) {
         batch.delete(docSnap.ref);
         count++;
       }
@@ -257,8 +401,8 @@ export async function deleteStudentFromFirestore(id: string, nis?: string): Prom
       await batch.commit();
     }
 
-    // 3. Record in deleted students
-    await recordDeletedItemInFirestore('students', id, nis);
+    // 3. Record in Cloud Tombstones so NO device or incognito browser can resurrect this student
+    await recordCloudTombstone('students', id, nis, name);
     return true;
   } catch (err) {
     console.error(`Failed to delete student from Firestore [${id}]:`, err);
@@ -271,43 +415,82 @@ export const subscribeStudentsFromFirestore = (cb: (s: Student[]) => void) => su
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (BILLS)
 // ============================================================================
+// ============================================================================
+// ENTITY-SPECIFIC HELPERS (BILLS)
+// ============================================================================
 export const saveBillToFirestore = (bill: Bill) => saveDocument(COLLECTIONS.BILLS, bill);
-export const deleteBillFromFirestore = (id: string) => deleteDocument(COLLECTIONS.BILLS, id);
+
+export async function deleteBillFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.BILLS, id);
+  await recordCloudTombstone('bills', id);
+  return success;
+}
+
 export const subscribeBillsFromFirestore = (cb: (b: Bill[]) => void) => subscribeCollection<Bill>(COLLECTIONS.BILLS, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (TRANSACTIONS)
 // ============================================================================
 export const saveTransactionToFirestore = (tx: PaymentTransaction) => saveDocument(COLLECTIONS.TRANSACTIONS, tx);
-export const deleteTransactionFromFirestore = (id: string) => deleteDocument(COLLECTIONS.TRANSACTIONS, id);
+
+export async function deleteTransactionFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.TRANSACTIONS, id);
+  await recordCloudTombstone('transactions', id);
+  return success;
+}
+
 export const subscribeTransactionsFromFirestore = (cb: (tx: PaymentTransaction[]) => void) => subscribeCollection<PaymentTransaction>(COLLECTIONS.TRANSACTIONS, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (PAYROLLS)
 // ============================================================================
 export const savePayrollToFirestore = (payroll: PayrollRecord) => saveDocument(COLLECTIONS.PAYROLLS, payroll);
-export const deletePayrollFromFirestore = (id: string) => deleteDocument(COLLECTIONS.PAYROLLS, id);
+
+export async function deletePayrollFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.PAYROLLS, id);
+  await recordCloudTombstone('payrolls', id);
+  return success;
+}
+
 export const subscribePayrollsFromFirestore = (cb: (p: PayrollRecord[]) => void) => subscribeCollection<PayrollRecord>(COLLECTIONS.PAYROLLS, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (INVENTORY)
 // ============================================================================
 export const saveInventoryToFirestore = (asset: InventoryAsset) => saveDocument(COLLECTIONS.INVENTORY, asset);
-export const deleteInventoryFromFirestore = (id: string) => deleteDocument(COLLECTIONS.INVENTORY, id);
+
+export async function deleteInventoryFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.INVENTORY, id);
+  await recordCloudTombstone('inventory_assets', id);
+  return success;
+}
+
 export const subscribeInventoryFromFirestore = (cb: (i: InventoryAsset[]) => void) => subscribeCollection<InventoryAsset>(COLLECTIONS.INVENTORY, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (TEACHING ADMINISTRATION DOCS)
 // ============================================================================
 export const saveTeachingDocToFirestore = (docItem: TeachingAdminDoc) => saveDocument(COLLECTIONS.TEACHING_DOCS, docItem);
-export const deleteTeachingDocFromFirestore = (id: string) => deleteDocument(COLLECTIONS.TEACHING_DOCS, id);
+
+export async function deleteTeachingDocFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.TEACHING_DOCS, id);
+  await recordCloudTombstone('teaching_docs', id);
+  return success;
+}
+
 export const subscribeTeachingDocsFromFirestore = (cb: (d: TeachingAdminDoc[]) => void) => subscribeCollection<TeachingAdminDoc>(COLLECTIONS.TEACHING_DOCS, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (SPMB REGISTRATIONS)
 // ============================================================================
 export const saveSpmbToFirestore = (spmb: SPMBRegistration) => saveDocument(COLLECTIONS.SPMB, spmb);
-export const deleteSpmbFromFirestore = (id: string) => deleteDocument(COLLECTIONS.SPMB, id);
+
+export async function deleteSpmbFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.SPMB, id);
+  await recordCloudTombstone('spmb', id);
+  return success;
+}
+
 export const subscribeSpmbFromFirestore = (cb: (items: SPMBRegistration[]) => void) => subscribeCollection<SPMBRegistration>(COLLECTIONS.SPMB, cb);
 
 export async function updateSpmbStatusInFirestore(
@@ -334,14 +517,54 @@ export async function updateSpmbStatusInFirestore(
 // ENTITY-SPECIFIC HELPERS (TEACHERS & STAFF)
 // ============================================================================
 export const saveTeacherToFirestore = (teacher: Teacher) => saveDocument(COLLECTIONS.TEACHERS, teacher);
-export const deleteTeacherFromFirestore = (id: string) => deleteDocument(COLLECTIONS.TEACHERS, id);
+
+export async function deleteTeacherFromFirestore(id: string, nip?: string, username?: string): Promise<boolean> {
+  try {
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.TEACHERS, id));
+    } catch {}
+
+    const querySnapshot = await getDocs(collection(db, COLLECTIONS.TEACHERS));
+    const batch = writeBatch(db);
+    let count = 0;
+    const cleanNip = (nip || '').trim();
+    const cleanUname = (username || '').toLowerCase().trim();
+
+    for (const docSnap of querySnapshot.docs) {
+      const t = docSnap.data() as Teacher;
+      const matchId = docSnap.id === id || t.id === id;
+      const matchNip = cleanNip && t.nip && t.nip.trim() === cleanNip;
+      const matchUname = cleanUname && t.username && t.username.toLowerCase().trim() === cleanUname;
+      if (matchId || matchNip || matchUname) {
+        batch.delete(docSnap.ref);
+        count++;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    await recordCloudTombstone('teachers', id, nip, username);
+    return true;
+  } catch (err) {
+    console.error(`Failed to delete teacher from Firestore [${id}]:`, err);
+    return false;
+  }
+}
+
 export const subscribeTeachersFromFirestore = (cb: (t: Teacher[]) => void) => subscribeCollection<Teacher>(COLLECTIONS.TEACHERS, cb);
 
 // ============================================================================
 // ENTITY-SPECIFIC HELPERS (BILL TYPES)
 // ============================================================================
 export const saveBillTypeToFirestore = (bt: BillType) => saveDocument(COLLECTIONS.BILL_TYPES, bt);
-export const deleteBillTypeFromFirestore = (id: string) => deleteDocument(COLLECTIONS.BILL_TYPES, id);
+
+export async function deleteBillTypeFromFirestore(id: string): Promise<boolean> {
+  const success = await deleteDocument(COLLECTIONS.BILL_TYPES, id);
+  await recordCloudTombstone('bill_types', id);
+  return success;
+}
+
 export const subscribeBillTypesFromFirestore = (cb: (bt: BillType[]) => void) => subscribeCollection<BillType>(COLLECTIONS.BILL_TYPES, cb);
 
 // ============================================================================
@@ -376,7 +599,12 @@ export function subscribeSchoolInfoFromFirestore(cb: (info: SchoolStaffInfo) => 
 // ============================================================================
 export const saveUserToFirestore = (user: AuthUser) => saveDocument(COLLECTIONS.USERS, user);
 
-export async function deleteUserFromFirestore(id: string, username?: string): Promise<boolean> {
+export async function deleteUserFromFirestore(
+  id: string,
+  username?: string,
+  email?: string,
+  name?: string
+): Promise<boolean> {
   try {
     // 1. Delete document directly
     try {
@@ -384,16 +612,19 @@ export async function deleteUserFromFirestore(id: string, username?: string): Pr
       await deleteDoc(docRef);
     } catch {}
 
-    // 2. Also search all docs in users collection for matching id or username
+    // 2. Also search all docs in users collection for matching id, username, or email
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
     const batch = writeBatch(db);
     let count = 0;
-    const cleanUname = (username || '').toLowerCase();
+    const cleanUname = (username || '').toLowerCase().trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
+
     for (const docSnap of querySnapshot.docs) {
       const u = docSnap.data() as AuthUser;
       const matchId = docSnap.id === id || u.id === id;
-      const matchUname = cleanUname && u.username && u.username.toLowerCase() === cleanUname;
-      if (matchId || matchUname) {
+      const matchUname = Boolean(cleanUname && u.username && u.username.toLowerCase().trim() === cleanUname);
+      const matchEmail = Boolean(cleanEmail && u.email && u.email.toLowerCase().trim() === cleanEmail);
+      if (matchId || matchUname || matchEmail) {
         batch.delete(docSnap.ref);
         count++;
       }
@@ -402,8 +633,8 @@ export async function deleteUserFromFirestore(id: string, username?: string): Pr
       await batch.commit();
     }
 
-    // 3. Record in deleted items so it is NEVER re-seeded
-    await recordDeletedItemInFirestore('users', id, username);
+    // 3. Record in Cloud Tombstones so it is NEVER resurrected on any device
+    await recordCloudTombstone('users', id, username, email, name);
     return true;
   } catch (err) {
     console.error(`Failed to delete user from Firestore [${id}]:`, err);
@@ -412,37 +643,7 @@ export async function deleteUserFromFirestore(id: string, username?: string): Pr
 }
 
 export function subscribeUsersFromFirestore(cb: (u: AuthUser[]) => void): () => void {
-  return subscribeCollection<AuthUser>(COLLECTIONS.USERS, (users) => {
-    try {
-      const localDeleted = (() => {
-        try {
-          const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
-          if (!raw) return new Set<string>();
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            return new Set(parsed.map((x: string) => String(x).toLowerCase().trim()));
-          }
-          const items = [...(parsed.ids || []), ...(parsed.usernames || []), ...(parsed.items || [])];
-          return new Set(items.map((x: string) => String(x).toLowerCase().trim()));
-        } catch {
-          return new Set<string>();
-        }
-      })();
-      const filtered = users.filter((u) => {
-        const idLower = u.id ? u.id.toLowerCase() : '';
-        const unameLower = u.username ? u.username.toLowerCase() : '';
-        const emailLower = u.email ? u.email.toLowerCase() : '';
-        return (
-          (!idLower || !localDeleted.has(idLower)) &&
-          (!unameLower || !localDeleted.has(unameLower)) &&
-          (!emailLower || !localDeleted.has(emailLower))
-        );
-      });
-      cb(filtered);
-    } catch {
-      cb(users);
-    }
-  });
+  return subscribeCollection<AuthUser>(COLLECTIONS.USERS, cb);
 }
 
 export async function fetchUsersFromFirestore(): Promise<AuthUser[]> {
@@ -485,36 +686,28 @@ export async function findUserInFirestore(identifier: string): Promise<AuthUser 
 
 export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<void> {
   try {
+    // If module was purged by Super Admin, do not re-seed!
+    if (await isModulePurgedInFirestore('users')) {
+      return;
+    }
+
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.USERS));
-    // CRITICAL FIX: If the users collection already has ANY records, it is ALREADY seeded!
-    // Never re-insert deleted users into an existing database on every reload!
+    // If users collection already has records, it is already seeded!
     if (querySnapshot.docs.length > 0) {
       return;
     }
 
-    const deletedSet = await fetchDeletedItemsFromFirestore('users');
-    const localDeleted = (() => {
-      try {
-        const raw = localStorage.getItem('sd_bopkri_deleted_users_v1');
-        if (!raw) return new Set<string>();
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return new Set(parsed.map((x: string) => String(x).toLowerCase()));
-        }
-        return new Set([...(parsed.ids || []), ...(parsed.usernames || [])].map((x: string) => String(x).toLowerCase()));
-      } catch {
-        return new Set<string>();
-      }
-    })();
+    const tombstones = await fetchCloudTombstones();
+    const deletedSet = tombstones.users || new Set<string>();
 
     for (const u of users) {
       const uLower = u.username.toLowerCase();
+      const emailLower = (u.email || '').toLowerCase();
       // NEVER re-seed if this user has been deleted by Super Admin!
       if (
         deletedSet.has(u.id.toLowerCase()) ||
         deletedSet.has(uLower) ||
-        localDeleted.has(u.id.toLowerCase()) ||
-        localDeleted.has(uLower)
+        (emailLower && deletedSet.has(emailLower))
       ) {
         continue;
       }
@@ -527,37 +720,29 @@ export async function seedInitialUsersToFirestore(users: AuthUser[]): Promise<vo
 
 export async function seedInitialStudentsToFirestore(students: Student[]): Promise<number> {
   try {
-    // If students were explicitly purged by Super Admin, DO NOT auto re-seed!
-    if (typeof window !== 'undefined' && localStorage.getItem('SIBOGO_STUDENTS_PURGED') === 'true') {
+    // If students were purged by Super Admin in Cloud Firestore, DO NOT auto re-seed!
+    if (await isModulePurgedInFirestore('students')) {
       return 0;
     }
 
     const querySnapshot = await getDocs(collection(db, COLLECTIONS.STUDENTS));
-    // CRITICAL FIX: If the students collection already has ANY records, it has ALREADY been seeded!
-    // Never re-insert deleted students back into an active database!
+    // If students collection already has records, it is already seeded!
     if (querySnapshot.docs.length > 0) {
       return 0;
     }
 
-    const deletedSet = await fetchDeletedItemsFromFirestore('students');
-    const localDeleted = (() => {
-      try {
-        const raw = localStorage.getItem('sd_bopkri_deleted_students_v1');
-        return new Set((raw ? JSON.parse(raw) : []).map((x: string) => String(x).toLowerCase()));
-      } catch {
-        return new Set<string>();
-      }
-    })();
+    const tombstones = await fetchCloudTombstones();
+    const deletedSet = tombstones.students || new Set<string>();
 
     let seeded = 0;
     for (const student of students) {
-      const nisClean = (student.nis || '').trim();
+      const nisClean = (student.nis || '').trim().toLowerCase();
+      const nameClean = (student.name || '').trim().toLowerCase();
       // NEVER seed if deleted!
       if (
         deletedSet.has(student.id.toLowerCase()) ||
-        deletedSet.has(nisClean.toLowerCase()) ||
-        localDeleted.has(student.id.toLowerCase()) ||
-        localDeleted.has(nisClean.toLowerCase())
+        (nisClean && deletedSet.has(nisClean)) ||
+        (nameClean && deletedSet.has(nameClean))
       ) {
         continue;
       }
@@ -568,6 +753,51 @@ export async function seedInitialStudentsToFirestore(students: Student[]): Promi
     return seeded;
   } catch (err) {
     console.error('Failed to seed initial students to Firestore:', err);
+    return 0;
+  }
+}
+
+export async function seedInitialTeachersToFirestore(teachers: Teacher[]): Promise<number> {
+  try {
+    if (await isModulePurgedInFirestore('teachers')) return 0;
+    const snap = await getDocs(collection(db, COLLECTIONS.TEACHERS));
+    if (snap.docs.length > 0) return 0;
+
+    const tombstones = await fetchCloudTombstones();
+    const deletedSet = tombstones.teachers || new Set<string>();
+
+    let count = 0;
+    for (const t of teachers) {
+      const nipClean = (t.nip || '').trim().toLowerCase();
+      if (deletedSet.has(t.id.toLowerCase()) || (nipClean && deletedSet.has(nipClean))) {
+        continue;
+      }
+      await saveDocument(COLLECTIONS.TEACHERS, t);
+      count++;
+    }
+    return count;
+  } catch {
+    return 0;
+  }
+}
+
+export async function seedInitialBillTypesToFirestore(billTypes: BillType[]): Promise<number> {
+  try {
+    if (await isModulePurgedInFirestore('bill_types')) return 0;
+    const snap = await getDocs(collection(db, COLLECTIONS.BILL_TYPES));
+    if (snap.docs.length > 0) return 0;
+
+    const tombstones = await fetchCloudTombstones();
+    const deletedSet = tombstones.bill_types || new Set<string>();
+
+    let count = 0;
+    for (const bt of billTypes) {
+      if (deletedSet.has(bt.id.toLowerCase())) continue;
+      await saveDocument(COLLECTIONS.BILL_TYPES, bt);
+      count++;
+    }
+    return count;
+  } catch {
     return 0;
   }
 }

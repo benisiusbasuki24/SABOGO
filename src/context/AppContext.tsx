@@ -49,9 +49,19 @@ import {
   findUserInFirestore,
   seedInitialUsersToFirestore,
   seedInitialStudentsToFirestore,
+  seedInitialTeachersToFirestore,
+  seedInitialBillTypesToFirestore,
   syncAllStudentsToFirestore,
   testFirestoreConnection,
   purgeCollectionInFirestore,
+  recordCloudTombstone,
+  subscribeCloudTombstones,
+  fetchCloudTombstones,
+  clearCloudTombstones,
+  savePurgedModuleToFirestore,
+  subscribePurgedModules,
+  isModulePurgedInFirestore,
+  clearPurgedModulesInFirestore,
   COLLECTIONS,
 } from '../firebase';
 import {
@@ -430,6 +440,20 @@ const STORAGE_KEYS = {
   DELETED_SPMB: 'sd_bopkri_deleted_spmb_v1',
 };
 
+export const mapStorageKeyToModule = (key: string): string => {
+  if (key === STORAGE_KEYS.DELETED_USERS) return 'users';
+  if (key === STORAGE_KEYS.DELETED_STUDENTS) return 'students';
+  if (key === STORAGE_KEYS.DELETED_BILLS) return 'bills';
+  if (key === STORAGE_KEYS.DELETED_TRANSACTIONS) return 'transactions';
+  if (key === STORAGE_KEYS.DELETED_TEACHERS) return 'teachers';
+  if (key === STORAGE_KEYS.DELETED_PAYROLLS) return 'payrolls';
+  if (key === STORAGE_KEYS.DELETED_ASSETS) return 'inventory_assets';
+  if (key === STORAGE_KEYS.DELETED_TEACHING_DOCS) return 'teaching_docs';
+  if (key === STORAGE_KEYS.DELETED_SPMB) return 'spmb';
+  if (key === STORAGE_KEYS.DELETED_BILL_TYPES) return 'bill_types';
+  return key;
+};
+
 export const getTombstoneSet = (key: string): Set<string> => {
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
@@ -450,14 +474,20 @@ export const getTombstoneSet = (key: string): Set<string> => {
 
 export const recordTombstone = (key: string, ...identifiers: (string | undefined | null)[]) => {
   try {
-    if (typeof window === 'undefined') return;
-    const currentSet = getTombstoneSet(key);
-    identifiers.forEach((id) => {
-      if (id && id.trim()) {
-        currentSet.add(id.trim().toLowerCase());
-      }
-    });
-    localStorage.setItem(key, JSON.stringify(Array.from(currentSet)));
+    if (typeof window !== 'undefined') {
+      const currentSet = getTombstoneSet(key);
+      identifiers.forEach((id) => {
+        if (id && id.trim()) {
+          currentSet.add(id.trim().toLowerCase());
+        }
+      });
+      localStorage.setItem(key, JSON.stringify(Array.from(currentSet)));
+    }
+    // Cross-device & Incognito synchronization: persist immediately to Cloud Firestore tombstones
+    const moduleName = mapStorageKeyToModule(key);
+    recordCloudTombstone(moduleName, ...identifiers).catch((err) =>
+      console.warn(`recordCloudTombstone error [${moduleName}]:`, err)
+    );
   } catch {}
 };
 
@@ -963,17 +993,101 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [currentUser]);
 
+  const [cloudTombstones, setCloudTombstones] = useState<Record<string, Set<string>>>({});
+  const [purgedModules, setPurgedModules] = useState<Record<string, boolean>>({});
+
+  const isEntityDeleted = (moduleName: string, ...identifiers: (string | undefined | null)[]): boolean => {
+    const cSet = cloudTombstones[moduleName];
+    const sk = Object.values(STORAGE_KEYS).find((v) => mapStorageKeyToModule(v) === moduleName);
+    const lSet = sk ? getTombstoneSet(sk) : new Set<string>();
+
+    return identifiers.some((raw) => {
+      if (!raw) return false;
+      const clean = String(raw).trim().toLowerCase();
+      if (!clean) return false;
+      return Boolean((cSet && cSet.has(clean)) || (lSet && lSet.has(clean)));
+    });
+  };
+
   // Initial Firestore boot sync and comprehensive multi-device real-time subscriptions
   useEffect(() => {
+    // 0a. Real-time subscription to Cloud Tombstones across all devices & incognito
+    const unsubscribeTombstones = subscribeCloudTombstones((cloudTombstonesMap) => {
+      setCloudTombstones(cloudTombstonesMap);
+
+      // Instant purge of deleted records across all devices
+      const userTombstones = cloudTombstonesMap.users || new Set<string>();
+      const studentTombstones = cloudTombstonesMap.students || new Set<string>();
+      const billTombstones = cloudTombstonesMap.bills || new Set<string>();
+      const txTombstones = cloudTombstonesMap.transactions || new Set<string>();
+      const teacherTombstones = cloudTombstonesMap.teachers || new Set<string>();
+      const payrollTombstones = cloudTombstonesMap.payrolls || new Set<string>();
+      const assetTombstones = cloudTombstonesMap.inventory_assets || new Set<string>();
+      const docTombstones = cloudTombstonesMap.teaching_docs || new Set<string>();
+      const spmbTombstones = cloudTombstonesMap.spmb || new Set<string>();
+      const btTombstones = cloudTombstonesMap.bill_types || new Set<string>();
+
+      setRegisteredUsers((prev) =>
+        prev.filter(
+          (u) =>
+            !userTombstones.has(u.id.toLowerCase()) &&
+            !userTombstones.has(u.username.toLowerCase()) &&
+            !(u.email && userTombstones.has(u.email.toLowerCase()))
+        )
+      );
+
+      setStudents((prev) =>
+        prev.filter(
+          (s) =>
+            !studentTombstones.has(s.id.toLowerCase()) &&
+            !(s.nis && studentTombstones.has(s.nis.trim().toLowerCase())) &&
+            !(s.name && studentTombstones.has(s.name.trim().toLowerCase()))
+        )
+      );
+
+      setBills((prev) => prev.filter((b) => !billTombstones.has(b.id.toLowerCase())));
+      setTransactions((prev) => prev.filter((t) => !txTombstones.has(t.id.toLowerCase())));
+      setTeachers((prev) =>
+        prev.filter(
+          (t) =>
+            !teacherTombstones.has(t.id.toLowerCase()) &&
+            !(t.nip && teacherTombstones.has(t.nip.trim().toLowerCase())) &&
+            !(t.username && teacherTombstones.has(t.username.toLowerCase()))
+        )
+      );
+      setPayrolls((prev) => prev.filter((p) => !payrollTombstones.has(p.id.toLowerCase())));
+      setAssets((prev) => prev.filter((a) => !assetTombstones.has(a.id.toLowerCase())));
+      setTeachingDocs((prev) => prev.filter((d) => !docTombstones.has(d.id.toLowerCase())));
+      setSpmbRegistrations((prev) => prev.filter((r) => !spmbTombstones.has(r.id.toLowerCase())));
+      setBillTypes((prev) => prev.filter((bt) => !btTombstones.has(bt.id.toLowerCase())));
+    });
+
+    // 0b. Real-time subscription to Purged Modules flags
+    const unsubscribePurged = subscribePurgedModules((purgedMap) => {
+      setPurgedModules(purgedMap);
+      if (purgedMap.students || purgedMap.all) setStudents([]);
+      if (purgedMap.bills || purgedMap.all) setBills([]);
+      if (purgedMap.transactions || purgedMap.all) setTransactions([]);
+      if (purgedMap.teachers || purgedMap.all) setTeachers([]);
+      if (purgedMap.payrolls || purgedMap.all) setPayrolls([]);
+      if (purgedMap.inventory_assets || purgedMap.assets || purgedMap.all) setAssets([]);
+      if (purgedMap.teaching_docs || purgedMap.teachingDocs || purgedMap.all) setTeachingDocs([]);
+      if (purgedMap.bill_types || purgedMap.billTypes || purgedMap.all) setBillTypes([]);
+    });
+
     // 1. Seed standard initial users into Firestore
     seedInitialUsersToFirestore(INITIAL_REGISTERED_USERS).catch(() => {});
 
     // 2. Real-time subscription to cloud registered users across all devices
     const unsubscribeUsers = subscribeUsersFromFirestore((cloudUsers) => {
       if (cloudUsers && cloudUsers.length > 0) {
+        const filteredUsers = cloudUsers.filter(
+          (u) => !isEntityDeleted('users', u.id, u.username, u.email, u.name)
+        );
+
         // Ensure all registered users have a unique 8-character code (kombinasi 4 angka & 4 huruf)
-        const existingCodes = cloudUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
-        const sanitizedUsers = cloudUsers.map((u) => {
+        const existingCodes = filteredUsers.map((u) => u.uniqueCode).filter(Boolean) as string[];
+        const sanitizedUsers = filteredUsers.map((u) => {
           if (!u.uniqueCode) {
             const newCode = generateUniqueUserCode(existingCodes);
             existingCodes.push(newCode);
@@ -1011,20 +1125,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 3. Real-time subscription to Students across all devices
     const unsubscribeStudents = subscribeStudentsFromFirestore((cloudStudents) => {
-      if (typeof window !== 'undefined' && localStorage.getItem('SIBOGO_STUDENTS_PURGED') === 'true') {
-        if (!cloudStudents || cloudStudents.length === 0) {
-          setStudents([]);
-        }
-        return;
-      }
       if (cloudStudents && cloudStudents.length > 0) {
-        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_STUDENTS);
         const filtered = cloudStudents
-          .filter(
-            (s) =>
-              !delSet.has(s.id.toLowerCase()) &&
-              !(s.nis && delSet.has(s.nis.trim().toLowerCase()))
-          )
+          .filter((s) => !isEntityDeleted('students', s.id, s.nis, s.name))
           .map((s) => ({
             ...s,
             grade: normalizeGrade(s.grade),
@@ -1040,48 +1143,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 4. Real-time subscription to Bills across all devices
     const unsubscribeBills = subscribeBillsFromFirestore((cloudBills) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_BILLS);
-      const filtered = (cloudBills || []).filter((b) => !delSet.has(b.id.toLowerCase()));
+      const filtered = (cloudBills || []).filter((b) => !isEntityDeleted('bills', b.id));
       setBills(filtered);
       localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify(filtered));
     });
 
     // 5. Real-time subscription to Transactions (Kwitansi) across all devices
     const unsubscribeTransactions = subscribeTransactionsFromFirestore((cloudTx) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TRANSACTIONS);
-      const filtered = (cloudTx || []).filter((t) => !delSet.has(t.id.toLowerCase()));
+      const filtered = (cloudTx || []).filter((t) => !isEntityDeleted('transactions', t.id));
       setTransactions(filtered);
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(filtered));
     });
 
     // 6. Real-time subscription to Payrolls across all devices
     const unsubscribePayrolls = subscribePayrollsFromFirestore((cloudPayrolls) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_PAYROLLS);
-      const filtered = (cloudPayrolls || []).filter((p) => !delSet.has(p.id.toLowerCase()));
+      const filtered = (cloudPayrolls || []).filter((p) => !isEntityDeleted('payrolls', p.id));
       setPayrolls(filtered);
       localStorage.setItem(STORAGE_KEYS.PAYROLLS, JSON.stringify(filtered));
     });
 
     // 7. Real-time subscription to Inventory Assets across all devices
     const unsubscribeInventory = subscribeInventoryFromFirestore((cloudAssets) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_ASSETS);
-      const filtered = (cloudAssets || []).filter((a) => !delSet.has(a.id.toLowerCase()));
+      const filtered = (cloudAssets || []).filter((a) => !isEntityDeleted('inventory_assets', a.id));
       setAssets(filtered);
       localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(filtered));
     });
 
     // 8. Real-time subscription to Teaching Docs across all devices
     const unsubscribeTeachingDocs = subscribeTeachingDocsFromFirestore((cloudDocs) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHING_DOCS);
-      const filtered = (cloudDocs || []).filter((d) => !delSet.has(d.id.toLowerCase()));
+      const filtered = (cloudDocs || []).filter((d) => !isEntityDeleted('teaching_docs', d.id));
       setTeachingDocs(filtered);
       localStorage.setItem(STORAGE_KEYS.TEACHING_DOCS, JSON.stringify(filtered));
     });
 
     // 9. Real-time subscription to SPMB registrations across all devices
     const unsubscribeSpmb = subscribeSpmbFromFirestore((cloudSpmb) => {
-      const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_SPMB);
-      const filtered = (cloudSpmb || []).filter((r) => !delSet.has(r.id.toLowerCase()));
+      const filtered = (cloudSpmb || []).filter((r) => !isEntityDeleted('spmb', r.id));
       setSpmbRegistrations(filtered);
       localStorage.setItem(STORAGE_KEYS.SPMB, JSON.stringify(filtered));
     });
@@ -1089,9 +1186,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 10. Real-time subscription to Teachers & Staff master
     const unsubscribeTeachers = subscribeTeachersFromFirestore((cloudTeachers) => {
       if (cloudTeachers && cloudTeachers.length > 0) {
-        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_TEACHERS);
         const filtered = cloudTeachers.filter(
-          (t) => !delSet.has(t.id.toLowerCase()) && !(t.nip && delSet.has(t.nip.trim().toLowerCase()))
+          (t) => !isEntityDeleted('teachers', t.id, t.nip, t.username)
         );
         setTeachers(filtered);
         localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(filtered));
@@ -1099,7 +1195,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Keep logged-in user in sync with teacher record changes across devices
         setCurrentUser((curr) => {
           if (!curr) return null;
-          const matchT = cloudTeachers.find(
+          const matchT = filtered.find(
             (t) =>
               (curr.teacherId && t.id === curr.teacherId) ||
               (curr.username && t.username && curr.username.toLowerCase() === t.username.toLowerCase()) ||
@@ -1129,11 +1225,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
+    // Seed master teachers & bill types if needed
+    seedInitialTeachersToFirestore(INITIAL_TEACHERS);
+    seedInitialBillTypesToFirestore(INITIAL_BILL_TYPES);
+
     // 11. Real-time subscription to Bill Types
     const unsubscribeBillTypes = subscribeBillTypesFromFirestore((cloudBillTypes) => {
       if (cloudBillTypes) {
-        const delSet = getTombstoneSet(STORAGE_KEYS.DELETED_BILL_TYPES);
-        const filtered = cloudBillTypes.filter((bt) => !delSet.has(bt.id.toLowerCase()));
+        const filtered = cloudBillTypes.filter((bt) => !isEntityDeleted('bill_types', bt.id));
         setBillTypes(filtered);
         localStorage.setItem(STORAGE_KEYS.BILL_TYPES, JSON.stringify(filtered));
       }
@@ -1147,6 +1246,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return () => {
+      unsubscribeTombstones();
+      unsubscribePurged();
       unsubscribeUsers();
       unsubscribeStudents();
       unsubscribeBills();
@@ -1800,8 +1901,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      recordTombstone(STORAGE_KEYS.DELETED_USERS, userId, targetUser.username, targetUser.email);
-      await deleteUserFromFirestore(userId, targetUser.username);
+      recordTombstone(STORAGE_KEYS.DELETED_USERS, userId, targetUser.username, targetUser.email, targetUser.name);
+      await deleteUserFromFirestore(userId, targetUser.username, targetUser.email, targetUser.name);
 
       setRegisteredUsers((prev) => {
         const next = prev.filter((u) => u.id !== userId && u.username.toLowerCase() !== targetUser.username.toLowerCase());
@@ -2080,8 +2181,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, id, targetStudent?.nis);
-    deleteStudentFromFirestore(id, targetStudent?.nis).catch(() => {});
+    recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, id, targetStudent?.nis, targetStudent?.name);
+    deleteStudentFromFirestore(id, targetStudent?.nis, targetStudent?.name).catch(() => {});
     if (deleteRelatedBills) {
       setBills((prev) => {
         const remaining: Bill[] = [];
@@ -2108,7 +2209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const idSet = new Set(ids);
     const deletedStudents = students.filter((s) => idSet.has(s.id));
     deletedStudents.forEach((st) => {
-      recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, st.id, st.nis);
+      recordTombstone(STORAGE_KEYS.DELETED_STUDENTS, st.id, st.nis, st.name);
     });
 
     setStudents((prev) => {
@@ -2117,7 +2218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return next;
     });
 
-    deletedStudents.forEach((st) => deleteStudentFromFirestore(st.id, st.nis).catch(() => {}));
+    deletedStudents.forEach((st) => deleteStudentFromFirestore(st.id, st.nis, st.name).catch(() => {}));
     if (deleteRelatedBills) {
       setBills((prev) => {
         const remaining: Bill[] = [];
@@ -2806,14 +2907,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     const target = teachers.find((t) => t.id === id);
-    recordTombstone(STORAGE_KEYS.DELETED_TEACHERS, id, target?.nip);
+    recordTombstone(STORAGE_KEYS.DELETED_TEACHERS, id, target?.nip, target?.username, target?.name);
 
     setTeachers((prev) => {
       const next = prev.filter((t) => t.id !== id);
       localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(next));
       return next;
     });
-    deleteTeacherFromFirestore(id).catch(() => {});
+    deleteTeacherFromFirestore(id, target?.nip, target?.username).catch(() => {});
 
     // Also remove matching user from registeredUsers so it doesn't resurrect
     setRegisteredUsers((prevUsers) => {
@@ -3224,12 +3325,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Data calon murid berhasil dihapus.', 'info');
   };
 
-  const resetToDefaultData = () => {
+  const resetToDefaultData = async () => {
     if (!isSuperAdmin) {
       showToast('Hanya Super Admin (Benisius) yang berwenang mereset data contoh.', 'warning');
       return;
     }
     if (window.confirm('Kembalikan seluruh data ke contoh awal SD BOPKRI Gondolayu?')) {
+      await clearCloudTombstones();
+      await clearPurgedModulesInFirestore();
       localStorage.removeItem('SIBOGO_STUDENTS_PURGED');
       localStorage.removeItem(STORAGE_KEYS.DELETED_STUDENTS);
       localStorage.removeItem(STORAGE_KEYS.DELETED_USERS);
@@ -3270,6 +3373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
+      await savePurgedModuleToFirestore(module, true);
       if (module === 'students' || module === 'all') {
         setStudents([]);
         localStorage.setItem(STORAGE_KEYS.STUDENTS, '[]');
