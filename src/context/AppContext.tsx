@@ -407,7 +407,7 @@ interface AppContextType {
   resetToDefaultData: () => void;
   isDataPurgeModalOpen: boolean;
   setIsDataPurgeModalOpen: (open: boolean) => void;
-  purgeModuleData: (module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all') => Promise<void> | void;
+  purgeModuleData: (module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'spmb' | 'users' | 'all') => Promise<void> | void;
   printFormat: 'A4' | 'STRUK';
   setPrintFormat: (fmt: 'A4' | 'STRUK') => void;
   openReceiptPrint: (tx: PaymentTransaction, format?: 'A4' | 'STRUK') => void;
@@ -1073,6 +1073,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (purgedMap.inventory_assets || purgedMap.assets || purgedMap.all) setAssets([]);
       if (purgedMap.teaching_docs || purgedMap.teachingDocs || purgedMap.all) setTeachingDocs([]);
       if (purgedMap.bill_types || purgedMap.billTypes || purgedMap.all) setBillTypes([]);
+      if (purgedMap.spmb || purgedMap.all) setSpmbRegistrations([]);
+      if (purgedMap.users || purgedMap.all) {
+        setRegisteredUsers((prev) =>
+          prev.filter(
+            (u) =>
+              u.id === 'usr-admin-benisius' ||
+              u.id === 'usr-admin-filipus' ||
+              u.username.toLowerCase() === 'benisiusbasuki24'
+          )
+        );
+      }
     });
 
     // 1. Seed standard initial users into Firestore
@@ -3336,6 +3347,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem('SIBOGO_STUDENTS_PURGED');
       localStorage.removeItem(STORAGE_KEYS.DELETED_STUDENTS);
       localStorage.removeItem(STORAGE_KEYS.DELETED_USERS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_BILLS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_TEACHERS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_PAYROLLS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_TEACHING_DOCS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_ASSETS);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_SPMB);
+      localStorage.removeItem(STORAGE_KEYS.DELETED_BILL_TYPES);
       localStorage.removeItem(STORAGE_KEYS.STAFF);
       localStorage.removeItem(STORAGE_KEYS.STUDENTS);
       localStorage.removeItem(STORAGE_KEYS.BILL_TYPES);
@@ -3347,6 +3366,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
       localStorage.removeItem(STORAGE_KEYS.ASSETS);
       localStorage.removeItem(STORAGE_KEYS.SPMB);
+      localStorage.removeItem(STORAGE_KEYS.REGISTERED_USERS);
+
       setStaffInfo(INITIAL_STAFF_INFO);
       setStudents(INITIAL_STUDENTS);
       setBillTypes(INITIAL_BILL_TYPES);
@@ -3357,15 +3378,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTeachingDocs(INITIAL_TEACHING_DOCS);
       setAssets(INITIAL_INVENTORY_ASSETS);
       setSpmbRegistrations(INITIAL_SPMB_REGISTRATIONS);
+      setRegisteredUsers(INITIAL_REGISTERED_USERS);
       setCurrentUser(null);
       setMainMenuState('keuangan');
       setActiveTabRaw('dashboard');
+
+      // Re-seed initial data to Cloud Firestore so other devices and incognito tabs receive the restored data
+      seedInitialUsersToFirestore(INITIAL_REGISTERED_USERS).catch(() => {});
+      seedInitialStudentsToFirestore(INITIAL_STUDENTS).catch(() => {});
+      seedInitialTeachersToFirestore(INITIAL_TEACHERS).catch(() => {});
+      seedInitialBillTypesToFirestore(INITIAL_BILL_TYPES).catch(() => {});
+
       showToast('Data contoh SD BOPKRI Gondolayu berhasil direset.', 'info');
     }
   };
 
   const purgeModuleData = async (
-    module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'all'
+    module: 'students' | 'bills' | 'transactions' | 'billTypes' | 'teachers' | 'payrolls' | 'teachingDocs' | 'assets' | 'spmb' | 'users' | 'all'
   ) => {
     if (!isSuperAdmin) {
       showToast('Hanya Super Admin (Benisius) yang memiliki hak akses mengosongkan seluruh data.', 'warning');
@@ -3374,6 +3403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       await savePurgedModuleToFirestore(module, true);
+
       if (module === 'students' || module === 'all') {
         setStudents([]);
         localStorage.setItem(STORAGE_KEYS.STUDENTS, '[]');
@@ -3415,6 +3445,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem(STORAGE_KEYS.ASSETS, '[]');
         await purgeCollectionInFirestore(COLLECTIONS.INVENTORY);
       }
+      if (module === 'spmb' || module === 'all') {
+        setSpmbRegistrations([]);
+        localStorage.setItem(STORAGE_KEYS.SPMB, '[]');
+        await purgeCollectionInFirestore(COLLECTIONS.SPMB);
+      }
+      if (module === 'users' || module === 'all') {
+        const rootAdminIds = ['usr-admin-benisius', 'usr-admin-filipus'];
+        setRegisteredUsers((prev) => {
+          const rootUsers = prev.filter(
+            (u) =>
+              rootAdminIds.includes(u.id) ||
+              u.username.toLowerCase() === 'benisiusbasuki24' ||
+              u.username.toLowerCase() === 'benisius'
+          );
+          const finalUsers = rootUsers.length > 0 ? rootUsers : [DEFAULT_ADMIN_USER, ADMIN_2_USER];
+          localStorage.setItem(STORAGE_KEYS.REGISTERED_USERS, JSON.stringify(finalUsers));
+          return finalUsers;
+        });
+        await purgeCollectionInFirestore(COLLECTIONS.USERS, rootAdminIds);
+      }
+
       showToast('Data modul berhasil dikosongkan secara permanen di Cloud Firestore.', 'info');
     } catch (err) {
       console.error('Failed to purge data from Cloud Firestore:', err);

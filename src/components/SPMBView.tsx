@@ -133,6 +133,7 @@ export const SPMBView: React.FC = () => {
     isSuperAdmin,
     staffInfo,
     showToast,
+    setIsDataPurgeModalOpen,
   } = useApp();
 
   // Active view: list or new form
@@ -519,6 +520,16 @@ export const SPMBView: React.FC = () => {
 
         {/* View Switcher Buttons */}
         <div className="flex items-center gap-2 shrink-0">
+          {isSuperAdmin && (
+            <button
+              onClick={() => setIsDataPurgeModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
+              title="Buka Pusat Pengelolaan & Penghapusan Data Sistem"
+            >
+              <Trash2 className="w-4 h-4 text-red-600" />
+              <span>Hapus Data</span>
+            </button>
+          )}
           <button
             onClick={() => setActiveView('LIST')}
             className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${

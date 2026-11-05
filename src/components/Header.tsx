@@ -483,8 +483,8 @@ export const Header: React.FC = () => {
           {isSuperAdmin && (
             <button
               onClick={() => setIsDataPurgeModalOpen(true)}
-              className="hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
-              title="Pusat Hapus Data Tersimpan (Khusus Super Admin)"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
+              title="Pusat Penghapusan & Pembersihan Data (Khusus Super Admin)"
             >
               <Trash2 className="w-3.5 h-3.5 text-red-600" />
               <span>Hapus Data</span>
@@ -722,6 +722,22 @@ export const Header: React.FC = () => {
             </div>
           )}
 
+          {/* Super Admin Purge Center button on Mobile */}
+          {isSuperAdmin && (
+            <div className="pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setIsDataPurgeModalOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-red-200"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+                <span>Pusat Hapus & Bersihkan Data (Super Admin)</span>
+              </button>
+            </div>
+          )}
+
           {/* Logout button on Mobile */}
           {currentUser && (
             <div className="pt-2 border-t border-slate-100">
@@ -730,7 +746,7 @@ export const Header: React.FC = () => {
                   logout();
                   setIsMobileMenuOpen(false);
                 }}
-                className="w-full py-2.5 px-3 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Keluar dari Akun</span>
